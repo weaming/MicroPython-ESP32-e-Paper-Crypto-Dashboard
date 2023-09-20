@@ -6,6 +6,7 @@ import urequests as requests
 
 from machine import Pin, SPI
 import newframebuf
+import framebuf
 import epaper7in5b as epaper
 
 import sleepscheduler as sl
@@ -13,24 +14,63 @@ from config import WIFI_SSID, WIFI_PASSWORD, SCREEN_WIDTH as w, SCREEN_HEIGHT as
 
 sys.path.append('.')
 
+"""
+https://randomnerdtutorials.com/esp32-spi-communication-arduino/
+https://en.wikipedia.org/wiki/Serial_Peripheral_Interface
 
+MISO: Master In Slave Out
+MOSI: Master Out Slave In
+SCK: Serial Clock
+CS/SS: Chip Select (used to select the device when multiple peripherals are used on the same SPI bus)
+
+On a slave-only device, like sensors, displays, and others, you may find a different terminology:
+
+MISO may be labeled as SDO (Serial Data Out)
+MOSI may be labeled as SDI (Serial Data In)
+
+
+DC: Data/Command
+RST: ReST
+SCK: Serial ClocK
+"""
+
+# v0
 miso = Pin(0)
 mosi = Pin(19)
-
 sck = Pin(18)
 cs = Pin(12)
 dc = Pin(0)
 rst = Pin(17)
 busy = Pin(32)
 
+# HSPI on ESP32
+miso = Pin(12)
+mosi = Pin(13)
+sck = Pin(14)
+cs = Pin(15)
+
+# VSPI on ESP32
+miso = Pin(19)
+mosi = Pin(23)
+sck = Pin(18)
+cs = Pin(5)  # or 33 ?
+
+dc = Pin(32)
+rst = Pin(19)
+busy = Pin(35)
+
+# GDEY075Z08
+sck = Pin(13)
+dc = Pin(11)
+cs = Pin(12)
+rst = Pin(10)
+busy = Pin(9)
+
+# https://docs.micropython.org/en/latest/library/machine.SPI.html#machine.SPI.init
 spi = SPI(2, baudrate=20000000, polarity=0, phase=0, sck=sck, miso=miso, mosi=mosi)
 
 e = epaper.EPD(spi, cs, dc, rst, busy)
 e.init()
-
-buf = bytearray(w * h // 8)
-fb = newframebuf.FrameBuffer(buf, h, w, newframebuf.MHMSB)
-fb.rotation = 0  # 调整显示的方向，可以在0/1/2/3之间选择
 
 black = 0
 white = 1
@@ -135,11 +175,17 @@ def ts_as_datetime_str(ts):
     return "{:04d}-{:02d}-{:02d} {:02d}:{:02d}".format(year, month, day, hours, minutes)
 
 
+buf = bytearray(w * h // 8)
+fb = newframebuf.FrameBuffer(buf, h, w, newframebuf.MHMSB)
+fb.rotation = 0  # 调整显示的方向，可以在0/1/2/3之间选择
+
+
 def display():
     # wifi_connect()
 
     fb.fill(white)
-    fb.text(ts_as_datetime_str(1695230423), 60, 10, black, size=3)
+    fb.text("hello", 60, 10, black, size=3)
+    # fb.text(ts_as_datetime_str(1695230423), 60, 10, black, size=3)
 
     # data = get_vars()
     # fb.text('BTC: {}'.format(btc), 30, 60, black, size=3)

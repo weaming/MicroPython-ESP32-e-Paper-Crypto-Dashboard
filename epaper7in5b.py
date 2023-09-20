@@ -1,28 +1,7 @@
 """
-MicroPython Waveshare 7.5" Black/White/Red GDEW075Z09 e-paper display driver
-https://github.com/mcauser/micropython-waveshare-epaper
+copy from https://github.com/mcauser/micropython-waveshare-epaper/blob/master/epaper7in5b.py
 
-MIT License
-Copyright (c) 2017 Waveshare
-Copyright (c) 2018 Mike Causer
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+MicroPython Waveshare 7.5" Black/White/Red GDEY075Z08 e-paper display driver
 """
 
 # also works for black/white/yellow GDEW075C21?
@@ -32,8 +11,8 @@ from time import sleep_ms
 import ustruct
 
 # Display resolution
-EPD_WIDTH = const(640)
-EPD_HEIGHT = const(384)
+EPD_WIDTH = const(800)
+EPD_HEIGHT = const(480)
 
 # Display commands
 PANEL_SETTING = const(0x00)

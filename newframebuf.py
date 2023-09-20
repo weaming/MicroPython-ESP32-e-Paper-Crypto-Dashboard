@@ -39,9 +39,7 @@ class MHMSBFormat:
         """Set a given pixel to a color."""
         index = (y * framebuf.stride + x) // 8
         offset = 7 - x & 0x07
-        framebuf.buf[index] = (framebuf.buf[index] & ~(0x01 << offset)) | (
-            (color != 0) << offset
-        )
+        framebuf.buf[index] = (framebuf.buf[index] & ~(0x01 << offset)) | ((color != 0) << offset)
 
     @staticmethod
     def get_pixel(framebuf, x, y):
@@ -69,9 +67,7 @@ class MHMSBFormat:
             offset = 7 - _x & 0x07
             for _y in range(y, y + height):
                 index = (_y * framebuf.stride + _x) // 8
-                framebuf.buf[index] = (framebuf.buf[index] & ~(0x01 << offset)) | (
-                    (color != 0) << offset
-                )
+                framebuf.buf[index] = (framebuf.buf[index] & ~(0x01 << offset)) | ((color != 0) << offset)
 
 
 class MVLSBFormat:
@@ -82,9 +78,7 @@ class MVLSBFormat:
         """Set a given pixel to a color."""
         index = (y >> 3) * framebuf.stride + x
         offset = y & 0x07
-        framebuf.buf[index] = (framebuf.buf[index] & ~(0x01 << offset)) | (
-            (color != 0) << offset
-        )
+        framebuf.buf[index] = (framebuf.buf[index] & ~(0x01 << offset)) | ((color != 0) << offset)
 
     @staticmethod
     def get_pixel(framebuf, x, y):
@@ -112,9 +106,7 @@ class MVLSBFormat:
             index = (y >> 3) * framebuf.stride + x
             offset = y & 0x07
             for w_w in range(width):
-                framebuf.buf[index + w_w] = (
-                    framebuf.buf[index + w_w] & ~(0x01 << offset)
-                ) | ((color != 0) << offset)
+                framebuf.buf[index + w_w] = (framebuf.buf[index + w_w] & ~(0x01 << offset)) | ((color != 0) << offset)
             y += 1
             height -= 1
 
@@ -129,19 +121,13 @@ class RGB888Format:
         if isinstance(color, tuple):
             framebuf.buf[index : index + 3] = bytes(color)
         else:
-            framebuf.buf[index : index + 3] = bytes(
-                ((color >> 16) & 255, (color >> 8) & 255, color & 255)
-            )
+            framebuf.buf[index : index + 3] = bytes(((color >> 16) & 255, (color >> 8) & 255, color & 255))
 
     @staticmethod
     def get_pixel(framebuf, x, y):
         """Get the color of a given pixel"""
         index = (y * framebuf.stride + x) * 3
-        return (
-            (framebuf.buf[index] << 16)
-            | (framebuf.buf[index + 1] << 8)
-            | framebuf.buf[index + 2]
-        )
+        return (framebuf.buf[index] << 16) | (framebuf.buf[index + 1] << 8) | framebuf.buf[index + 2]
 
     @staticmethod
     def fill(framebuf, color):
@@ -290,14 +276,7 @@ class FrameBuffer:
             y = self.height - y - height
 
         # pylint: disable=too-many-boolean-expressions
-        if (
-            width < 1
-            or height < 1
-            or (x + width) <= 0
-            or (y + height) <= 0
-            or y >= self.height
-            or x >= self.width
-        ):
+        if width < 1 or height < 1 or (x + width) <= 0 or (y + height) <= 0 or y >= self.height or x >= self.width:
             return
         x_end = min(self.width - 1, x + width - 1)
         y_end = min(self.height - 1, y + height - 1)
@@ -364,14 +343,12 @@ class FrameBuffer:
         while y != yend:
             x = shift_x
             while x != xend:
-                self.format.set_pixel(
-                    self, x, y, self.format.get_pixel(self, x - delta_x, y - delta_y)
-                )
+                self.format.set_pixel(self, x, y, self.format.get_pixel(self, x - delta_x, y - delta_y))
                 x += dt_x
             y += dt_y
 
     # pylint: disable=too-many-arguments
-    def text(self, string, x, y, color, *, font_name="font5x8.bin", size=1):
+    def text(self, string, x, y, color, *, font_name="resources/font5x8.bin", size=1):
         """Place text on the screen in variables sizes. Breaks on \n to next line.
         Does not break on line going off screen.
         """
@@ -416,11 +393,7 @@ class FrameBuffer:
 
         imwidth, imheight = img.size
         if imwidth != width or imheight != height:
-            raise ValueError(
-                "Image must be same dimensions as display ({0}x{1}).".format(
-                    width, height
-                )
-            )
+            raise ValueError("Image must be same dimensions as display ({0}x{1}).".format(width, height))
         # Grab all the pixels from the image, faster than getpixel.
         pixels = img.load()
         # Clear buffer
@@ -443,7 +416,7 @@ class BitmapFont:
     file to display in a framebuffer. We use file access so we dont waste 1KB
     of RAM on a font!"""
 
-    def __init__(self, font_name="font5x8.bin"):
+    def __init__(self, font_name="resources/font5x8.bin"):
         # Specify the drawing area width and height, and the pixel function to
         # call when drawing pixels (should take an x and y param at least).
         # Optionally specify font_name to override the font file to use (default
@@ -459,9 +432,7 @@ class BitmapFont:
         # Open the font file and grab the character width and height values.
         # Note that only fonts up to 8 pixels tall are currently supported.
         try:
-            self._font = open(  # pylint: disable=consider-using-with
-                self.font_name, "rb"
-            )
+            self._font = open(self.font_name, "rb")  # pylint: disable=consider-using-with
             self.font_width, self.font_height = struct.unpack("BB", self._font.read(2))
             # simple font file validation check based on expected file size
             if 2 + 256 * self.font_width != os.stat(font_name)[6]:
@@ -487,9 +458,7 @@ class BitmapFont:
         """cleanup on exit"""
         self.deinit()
 
-    def draw_char(
-        self, char, x, y, framebuffer, color, size=1
-    ):  # pylint: disable=too-many-arguments
+    def draw_char(self, char, x, y, framebuffer, color, size=1):  # pylint: disable=too-many-arguments
         """Draw one character at position (x,y) to a framebuffer in a given color"""
         size = max(size, 1)
         # Don't draw the character if it will be clipped off the visible area.
@@ -508,9 +477,7 @@ class BitmapFont:
             for char_y in range(self.font_height):
                 # Draw a pixel for each bit that's flipped on.
                 if (line >> char_y) & 0x1:
-                    framebuffer.fill_rect(
-                        x + char_x * size, y + char_y * size, size, size, color
-                    )
+                    framebuffer.fill_rect(x + char_x * size, y + char_y * size, size, size, color)
 
     def width(self, text):
         """Return the pixel width of the specified text message."""
@@ -519,6 +486,5 @@ class BitmapFont:
 
 class FrameBuffer1(FrameBuffer):  # pylint: disable=abstract-method
     """FrameBuffer1 object. Inherits from FrameBuffer."""
+
     pass
-
-
