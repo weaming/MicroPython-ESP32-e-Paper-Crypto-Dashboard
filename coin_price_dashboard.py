@@ -1,11 +1,12 @@
-import network
-import urequests as requests
-from machine import Pin, SPI
-import newframebuf
-import epaper7in5b as epaper
 import sys
 import ntptime
 import utime
+import network
+import urequests as requests
+
+from machine import Pin, SPI
+import newframebuf
+import epaper7in5b as epaper
 
 import sleepscheduler as sl
 from config import WIFI_SSID, WIFI_PASSWORD, SCREEN_WIDTH as w, SCREEN_HEIGHT as h
@@ -31,28 +32,32 @@ buf = bytearray(w * h // 8)
 fb = newframebuf.FrameBuffer(buf, h, w, newframebuf.MHMSB)
 fb.rotation = 0  # 调整显示的方向，可以在0/1/2/3之间选择
 
+black = 0
+white = 1
+yellow = 2
+
 
 def get_symbol_price():
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
         res = requests.request('GET', 'https://hope.money/hope-index-stage-2?period=3600', headers=headers)
         """
-{
-  "hope_price_list": [
-    [
-      0.4925987029447829,
-      1686139200
-    ],
-    [
-      0.49105454893639217,
-      1686140724
-    ]
-  ],
-  "btc_index_price": 26801.25,
-  "eth_index_price": 1865.9166666666667,
-  "hope_index_price": 0.49105454893639217,
-  "k": 0.00001080180484347501
-}
+        {
+        "hope_price_list": [
+            [
+            0.4925987029447829,
+            1686139200
+            ],
+            [
+            0.49105454893639217,
+            1686140724
+            ]
+        ],
+        "btc_index_price": 26801.25,
+        "eth_index_price": 1865.9166666666667,
+        "hope_index_price": 0.49105454893639217,
+        "k": 0.00001080180484347501
+        }
         """
         response = res.json()
         btc_price = response['btc_index_price']
@@ -101,19 +106,19 @@ def wifi_connect():
     print('network config:', wlan.ifconfig())
 
 
-def display():
-    # 检查WiFi
-    wifi_connect()
-
+def get_vars() -> dict:
     btc, eth, hope, ts = get_symbol_price()
     lt = get_lt_price()
     # todo 上面两个接口可以整合为一个，可以都从dex screener上获取，但是需要考虑到HOPE的价格在dex screener可能有延迟
     bgb = get_bgb_price()
 
-    # 获取当前时间
+    return {}
+
+
+def ts_as_datetime_str(ts):
     """
     utime.localtime([secs]):
-    
+
     year includes the century (for example 2014).
     month is 1-12
     mday is 1-31
@@ -127,40 +132,43 @@ def display():
     # 如esp32模块的rtc初始时钟是 2000年1月1日
     # 所以1970年时间戳 需要转换为 rtc时间戳: 1686140724 - 946656000
     year, month, day, hours, minutes, seconds, weekday, yearday = utime.localtime(ts - 946656000)
-    # 格式化时间字符串
-    time_str = "{:04d}-{:02d}-{:02d} {:02d}:{:02d}".format(year, month, day, hours, minutes)
+    return "{:04d}-{:02d}-{:02d} {:02d}:{:02d}".format(year, month, day, hours, minutes)
 
-    black = 0
-    white = 1
+
+def display():
+    # wifi_connect()
+
     fb.fill(white)
-    fb.text(time_str, 60, 10, black, size=3)
+    fb.text(ts_as_datetime_str(1695230423), 60, 10, black, size=3)
 
-    fb.text('BTC: {}'.format(btc), 30, 60, black, size=3)
-    fb.text('ETH: {}'.format(eth), 30, 100, black, size=3)
-    fb.text('HOPE: {}'.format(hope), 30, 140, black, size=3)
-    fb.text('LT: {}'.format(lt), 30, 180, black, size=3)
-    fb.text('BGB: {}'.format(bgb), 30, 220, black, size=3)
-    fb.rect(0, 40, 400, 4, black, fill=True)  # line: (x, y, width, 1, color, fill=True)
+    # data = get_vars()
+    # fb.text('BTC: {}'.format(btc), 30, 60, black, size=3)
+    # fb.text('ETH: {}'.format(eth), 30, 100, black, size=3)
+    # fb.text('HOPE: {}'.format(hope), 30, 140, black, size=3)
+    # fb.text('LT: {}'.format(lt), 30, 180, black, size=3)
+    # fb.text('BGB: {}'.format(bgb), 30, 220, black, size=3)
+
+    fb.rect(0, 40, w, 4, black, fill=True)  # line: (x, y, width, 1, color, fill=True)
     # fb.circle(50, 150, 10, black)
+
     e.display_frame(buf)
 
 
-# def calibration_time():
-#     year, *_ = utime.localtime()
-#     if not str(year).startswith('202'):  # default is 2000-01-01 00:00:00
-#         # set the time from the network
-#         ntptime.host = "ntp1.aliyun.com"
-#         ntptime.NTP_DELTA = 3155644800  # 东八区 UTC+8偏移时间（秒）
-#         ntptime.settime()
-#         print("calibration_time to: {}".format(utime.localtime()))
+def calibration_time():
+    year, *_ = utime.localtime()
+    if not str(year).startswith('202'):  # default is 2000-01-01 00:00:00
+        # set the time from the network
+        ntptime.host = "ntp1.aliyun.com"
+        ntptime.NTP_DELTA = 3155644800  # 东八区 UTC+8偏移时间（秒）
+        ntptime.settime()
+        print("calibration_time to: {}".format(utime.localtime()))
 
 
 def init_on_cold_boot():
-    # configure and connect WLAN
-    wifi_connect()
+    print('init_on_cold_boot...')
+    # wifi_connect()
 
     # the time is kept during deep sleep
-    # 检查时间
     calibration_time()
 
     sl.schedule_immediately(__name__, display, 60 * 5)
