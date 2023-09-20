@@ -2,7 +2,7 @@ import network
 import urequests as requests
 from machine import Pin, SPI
 import newframebuf
-import epaper4in2 as epaper
+import epaper7in5b as epaper
 import sys
 import ntptime
 import utime
@@ -157,10 +157,10 @@ def display():
 
 def init_on_cold_boot():
     # configure and connect WLAN
-    # wifi_connect()
+    wifi_connect()
 
     # the time is kept during deep sleep
     # 检查时间
-    # calibration_time()
+    calibration_time()
 
     sl.schedule_immediately(__name__, display, 60 * 5)
