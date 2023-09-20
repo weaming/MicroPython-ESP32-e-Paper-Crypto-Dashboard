@@ -8,11 +8,10 @@ import ntptime
 import utime
 
 import sleepscheduler as sl
+from config import WIFI_SSID, WIFI_PASSWORD, SCREEN_WIDTH as w, SCREEN_HEIGHT as h
 
 sys.path.append('.')
 
-WIFI_SSID = "HIWIFI"
-WIFI_PASSWORD = "password"
 
 miso = Pin(0)
 mosi = Pin(19)
@@ -28,10 +27,7 @@ spi = SPI(2, baudrate=20000000, polarity=0, phase=0, sck=sck, miso=miso, mosi=mo
 e = epaper.EPD(spi, cs, dc, rst, busy)
 e.init()
 
-w = 300
-h = 400
-
-buf = bytearray(w * h // 8)  # 400 * 300 / 8 = 15000 - thats a lot of pixels
+buf = bytearray(w * h // 8)
 fb = newframebuf.FrameBuffer(buf, h, w, newframebuf.MHMSB)
 fb.rotation = 0  # 调整显示的方向，可以在0/1/2/3之间选择
 
@@ -75,8 +71,9 @@ def get_lt_price():
         # pair_address = '0x1c2ad915cd67284cdbc04507b11980797cf51b22'  # HOPE / USDT
         # pair_address = '0x11b815efb8f581194ae79006d24e0d814b7697f6'  # WETH / USDT
         # pair_address = '0x9db9e0e53058c89e5b94e29621a205198648425b'  # WBTC / USDT
-        resp = requests.request('GET',
-                                'https://api.dexscreener.com/latest/dex/pairs/{}/{}'.format(chain_id, pair_address))
+        resp = requests.request(
+            'GET', 'https://api.dexscreener.com/latest/dex/pairs/{}/{}'.format(chain_id, pair_address)
+        )
         lt_last_price = resp.json()['pair']['priceUsd']
         return lt_last_price
     except:
