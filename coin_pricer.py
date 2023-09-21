@@ -1,12 +1,11 @@
-import ntptime
 import utime
-import framebuf
+import framebuf  # https://docs.micropython.org/en/latest/library/framebuf.html#framebuf.FrameBuffer
 
-import newframebuf
+import framebuf2
 import urequests as requests
 import sleepscheduler as sl
 from epaper7in5b import EPD
-from device import white, black, yellow
+from device import white, black, yellow, connect_wifi, calibration_time
 
 
 def get_symbol_price():
@@ -97,9 +96,10 @@ def ts_as_datetime_str(ts):
 
 
 def display(e: EPD):
-    w, h = e.width, e.height
+    w, h = e.width / 4, e.height / 4
+    w, h = int(w), int(h)
     buf = bytearray(w * h // 8)
-    fb = newframebuf.FrameBuffer(buf, h, w, newframebuf.MHMSB)
+    fb = framebuf2.FrameBuffer(buf, w, h, framebuf2.MHMSB)
     fb.rotation = 0  # 调整显示的方向，可以在0/1/2/3之间选择
 
     fb.fill(white)
@@ -116,23 +116,14 @@ def display(e: EPD):
     fb.rect(0, 40, w, 4, black, fill=True)  # line: (x, y, width, 1, color, fill=True)
     # fb.circle(50, 150, 10, black)
 
+    # fb.print()
     e.display_frame(buf)
-
-
-def calibration_time():
-    year, *_ = utime.localtime()
-    if not str(year).startswith('202'):  # default is 2000-01-01 00:00:00
-        # set the time from the network
-        ntptime.host = "ntp1.aliyun.com"
-        ntptime.NTP_DELTA = 3155644800  # 东八区 UTC+8偏移时间（秒）
-        ntptime.settime()
-        print("calibration_time to: {}".format(utime.localtime()))
 
 
 def init_on_cold_boot(wifi=False):
     print('init_on_cold_boot...')
     if wifi:
-        wifi_connect()
+        connect_wifi()
         calibration_time()  # the time is kept during deep sleep
 
     sl.schedule_immediately(__name__, display, 60 * 5)

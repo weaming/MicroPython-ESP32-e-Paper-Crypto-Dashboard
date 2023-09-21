@@ -2,7 +2,7 @@
 copy from https://github.com/mcauser/micropython-waveshare-epaper/blob/master/epaper7in5b.py
 
 MicroPython Waveshare 7.5" Black/White/Red GDEY075Z08 e-paper display driver
-Also works for black/white/yellow GDEW075C21?
+MicroPython Waveshare 7.5" Black/White/Yellow GDEW075C64 e-paper display driver
 """
 
 from micropython import const
@@ -10,48 +10,48 @@ from time import sleep_ms
 import ustruct
 
 # Display resolution
-# https://www.good-display.cn/product/386.html
+# https://www.e-paper-display.cn/products_detail/productId=474.html
 EPD_WIDTH = const(800)
 EPD_HEIGHT = const(480)
 
-# Display commands
-PANEL_SETTING = const(0x00)
-POWER_SETTING = const(0x01)
-POWER_OFF = const(0x02)
-# POWER_OFF_SEQUENCE_SETTING     = const(0x03)
-POWER_ON = const(0x04)
-# POWER_ON_MEASURE               = const(0x05)
-BOOSTER_SOFT_START = const(0x06)
-DEEP_SLEEP = const(0x07)
-DATA_START_TRANSMISSION_1 = const(0x10)
-# DATA_STOP                      = const(0x11)
-DISPLAY_REFRESH = const(0x12)
-# IMAGE_PROCESS                  = const(0x13)
-# LUT_FOR_VCOM                   = const(0x20)
-# LUT_BLUE                       = const(0x21)
-# LUT_WHITE                      = const(0x22)
-# LUT_GRAY_1                     = const(0x23)
-# LUT_GRAY_2                     = const(0x24)
-# LUT_RED_0                      = const(0x25)
-# LUT_RED_1                      = const(0x26)
-# LUT_RED_2                      = const(0x27)
-# LUT_RED_3                      = const(0x28)
-# LUT_XON                        = const(0x29)
-PLL_CONTROL = const(0x30)
-# TEMPERATURE_SENSOR_COMMAND     = const(0x40)
-TEMPERATURE_CALIBRATION = const(0x41)
-# TEMPERATURE_SENSOR_WRITE       = const(0x42)
-# TEMPERATURE_SENSOR_READ        = const(0x43)
-VCOM_AND_DATA_INTERVAL_SETTING = const(0x50)
-# LOW_POWER_DETECTION            = const(0x51)
-TCON_SETTING = const(0x60)
-TCON_RESOLUTION = const(0x61)
-# SPI_FLASH_CONTROL              = const(0x65)
-# REVISION                       = const(0x70)
-# GET_STATUS                     = const(0x71)
-# AUTO_MEASUREMENT_VCOM          = const(0x80)
-# READ_VCOM_VALUE                = const(0x81)
-VCM_DC_SETTING = const(0x82)
+# Display commands, copy from https://github.com/zhufucdev/gdey075z08_driver/blob/main/src/gdey075z08_driver/driver.py
+PANEL_SETTING = 0x00
+POWER_SETTING = 0x01
+POWER_OFF = 0x02
+POWER_OFF_SEQUENCE_SETTING = 0x03
+POWER_ON = 0x04
+POWER_ON_MEASURE = 0x05
+BOOSTER_SOFT_START = 0x06
+DEEP_SLEEP = 0x07
+DATA_START_TRANSMISSION_1 = 0x10
+DATA_STOP = 0x11
+DISPLAY_REFRESH = 0x12
+DATA_START_TRANSMISSION_2 = 0x13
+LUT_FOR_VCOM = 0x20
+LUT_BLUE = 0x21
+LUT_WHITE = 0x22
+LUT_GRAY_1 = 0x23
+LUT_GRAY_2 = 0x24
+LUT_RED_0 = 0x25
+LUT_RED_1 = 0x26
+LUT_RED_2 = 0x27
+LUT_RED_3 = 0x28
+LUT_XON = 0x29
+PLL_CONTROL = 0x30
+TEMPERATURE_SENSOR_COMMAND = 0x40
+TEMPERATURE_CALIBRATION = 0x41
+TEMPERATURE_SENSOR_WRITE = 0x42
+TEMPERATURE_SENSOR_READ = 0x43
+VCOM_AND_DATA_INTERVAL_SETTING = 0x50
+LOW_POWER_DETECTION = 0x51
+TCON_SETTING = 0x60
+TCON_RESOLUTION = 0x61
+SPI_FLASH_CONTROL = 0x65
+REVISION = 0x70
+GET_STATUS = 0x71
+AUTO_MEASUREMENT_VCOM = 0x80
+READ_VCOM_VALUE = 0x81
+VCM_DC_SETTING = 0x82
 FLASH_MODE = const(0xE5)
 
 BUSY = const(0)  # 0=busy, 1=idle
@@ -120,7 +120,11 @@ class EPD:
     def display_frame(self, frame_buffer):
         self._command(DATA_START_TRANSMISSION_1)
         for i in range(0, self.width * self.height // 4):
-            temp1 = frame_buffer[i]
+            try:
+                temp1 = frame_buffer[i]
+            except IndexError as e:
+                print(e)
+                break
             j = 0
             while j < 4:
                 if (temp1 & 0xC0) == 0xC0:
@@ -150,3 +154,52 @@ class EPD:
         self._command(POWER_OFF)
         self.wait_until_idle()
         self._command(DEEP_SLEEP, b'\xA5')
+
+    # copy from https://github.com/zhufucdev/gdey075z08_driver/blob/main/src/gdey075z08_driver/driver.py
+
+    def get_frame_buffer(self, image):
+        buf_w = [0xFF] * int(self.height * self.width / 8)
+        buf_r = [0x00] * int(self.height * self.width / 8)
+        # Set buffer to value of Python Imaging Library image.
+        # Image must be in mode L.
+        image_grayscale = image.convert('L')
+        imwidth, imheight = image_grayscale.size
+        if imwidth != self.width or imheight != self.height:
+            raise ValueError(
+                'Image must be same dimensions as display \
+                ({0}x{1}).'.format(
+                    self.width, self.height
+                )
+            )
+
+        pixels = image_grayscale.load()
+        for y in range(self.height):
+            for x in range(int(self.width / 8)):
+                sign_w = 0xFF
+                sign_r = 0x00
+                for i in range(0, 8):
+                    p = pixels[x * 8 + i, y]
+                    if p < self.red_bounds[0]:
+                        sign_w &= ~(0x80 >> i)
+                    elif p < self.red_bounds[1]:
+                        sign_r |= 0x80 >> i
+                index = x + int(y * self.width / 8)
+                buf_w[index] = sign_w
+                buf_r[index] = sign_r
+        return buf_w, buf_r
+
+    def display_frame_2(self, frame_buffer):
+        buf_w, buf_r = frame_buffer
+
+        def write_buffer(buf):
+            for data in buf:
+                self._data(data)
+
+        self._command(DATA_START_TRANSMISSION_1)
+        write_buffer(buf_w)
+        self._command(DATA_START_TRANSMISSION_2)
+        write_buffer(buf_r)
+
+        self._command(DISPLAY_REFRESH)
+        self.delay_ms(100)
+        self.wait_until_idle()

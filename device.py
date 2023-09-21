@@ -28,6 +28,7 @@ SCK: Serial ClocK
 """
 
 import network
+import ntptime
 import utime
 from machine import Pin, SPI
 import epaper7in5b as epaper
@@ -36,7 +37,7 @@ from config import WIFI_SSID, WIFI_PASSWORD
 
 # GxEPD2_3C<GxEPD2_750c_Z08, GxEPD2_750c_Z08::HEIGHT>
 # display(GxEPD2_750c_Z08(/CS=5/ 5, /DC=/ 19, /RST=/ 16, /BUSY=/ 17));
-# from gitee schema
+# same as gitee schema
 cs = Pin(5)
 dc = Pin(19)
 rst = Pin(16)
@@ -47,26 +48,6 @@ busy = Pin(17)
 miso = Pin(19)
 mosi = Pin(23)
 sck = Pin(18)
-# from spec of GDEW075C64
-# sck = Pin(13)
-# cs = Pin(12)
-# dc = Pin(11)
-# rst = Pin(10)
-# busy = Pin(9)
-
-# ESP32 Driver Board 电子墨水屏无线网络驱动板
-# https://www.waveshare.net/shop/e-Paper-ESP32-Driver-Board.htm
-# miso = Pin(0)  # blank
-# mosi = Pin(12)
-# sck = Pin(15)
-# cs = Pin(16)
-# dc = Pin(11)
-# rst = Pin(10)
-# busy = Pin(9)
-
-# k1 = Pin(35)
-# k2 = Pin(32)
-# k3 = Pin(34)
 
 black = 0
 white = 1
@@ -91,3 +72,13 @@ def connect_wifi():
             print(".", end="")
             utime.sleep(1)
     print('network config:', wlan.ifconfig())
+
+
+def calibration_time():
+    year, *_ = utime.localtime()
+    if not str(year).startswith('202'):  # default is 2000-01-01 00:00:00
+        # set the time from the network
+        ntptime.host = "ntp1.aliyun.com"
+        ntptime.NTP_DELTA = 3155644800  # 东八区 UTC+8偏移时间（秒）
+        ntptime.settime()
+        print("calibration_time to: {}".format(utime.localtime()))
