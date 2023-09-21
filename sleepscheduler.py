@@ -92,8 +92,7 @@ def schedule_delayed(module_name, function, seconds, repeat_after_sec=0):
     Returns:
         None
     """
-    schedule_epoch_sec(module_name, function,
-                       utime.time() + seconds, repeat_after_sec)
+    schedule_epoch_sec(module_name, function, utime.time() + seconds, repeat_after_sec)
 
 
 def schedule_next_full_minute(module_name, function, repeat_after_sec=0):
@@ -151,12 +150,11 @@ def schedule_epoch_sec(module_name, function, seconds_since_epoch, repeat_after_
         function_name = function.__name__
     else:
         function_name = function
-    new_task = Task(module_name, function_name,
-                    seconds_since_epoch, repeat_after_sec)
+    new_task = Task(module_name, function_name, seconds_since_epoch, repeat_after_sec)
     inserted = False
     for i in range(len(_tasks)):
         task = _tasks[i]
-        if (task.seconds_since_epoch > seconds_since_epoch):
+        if task.seconds_since_epoch > seconds_since_epoch:
             _tasks.insert(i, new_task)
             inserted = True
             break
@@ -252,8 +250,17 @@ def print_tasks():
         None
     """
     for task in _tasks:
-        print("sleepscheduler: print_tasks() { \"module_name\": \"" + task.module_name + "\", \"function_name\": \"" + task.function_name +
-              "\", \"seconds_since_epoch\": " + str(task.seconds_since_epoch) + ", \"repeat_after_sec\": " + str(task.repeat_after_sec) + "}")
+        print(
+            "sleepscheduler: print_tasks() { \"module_name\": \""
+            + task.module_name
+            + "\", \"function_name\": \""
+            + task.function_name
+            + "\", \"seconds_since_epoch\": "
+            + str(task.seconds_since_epoch)
+            + ", \"repeat_after_sec\": "
+            + str(task.repeat_after_sec)
+            + "}"
+        )
 
 
 # -------------------------------------------------------------------------------------------------
@@ -274,9 +281,14 @@ class Task:
 # Encoding/Decoding
 # -------------------------------------------------------------------------------------------------
 def _encode_task(task):
-    bytes = task.module_name.encode() + "\0" + task.function_name.encode() + "\0" + \
-        task.seconds_since_epoch.to_bytes(
-            4, 'big') + task.repeat_after_sec.to_bytes(4, 'big')
+    bytes = (
+        task.module_name.encode()
+        + "\0"
+        + task.function_name.encode()
+        + "\0"
+        + task.seconds_since_epoch.to_bytes(4, 'big')
+        + task.repeat_after_sec.to_bytes(4, 'big')
+    )
     return bytes
 
 
@@ -302,8 +314,7 @@ def _decode_task(bytes, start_index, tasks):
     end_index = start_index + 4
     repeat_after_sec = int.from_bytes(bytes[start_index:end_index], 'big')
 
-    task = Task(module_name, function_name,
-                seconds_since_epoch, repeat_after_sec)
+    task = Task(module_name, function_name, seconds_since_epoch, repeat_after_sec)
     tasks.append(task)
     return end_index
 
@@ -337,7 +348,7 @@ def _decode_tasks(bytes):
 
     # restore potential rtc_memory_bytes
     global rtc_memory_bytes
-    rtc_memory_bytes = bytearray(bytes[start_index:len(bytes)])
+    rtc_memory_bytes = bytearray(bytes[start_index : len(bytes)])
 
 
 # -------------------------------------------------------------------------------------------------
@@ -374,7 +385,6 @@ def _execute_task(task):
     return True
 
 
-
 def _run_tasks(forever):
     while True:
         if _tasks:
@@ -391,42 +401,44 @@ def _run_tasks(forever):
                         first_task.module_name,
                         first_task.function_name,
                         first_task.seconds_since_epoch + first_task.repeat_after_sec,
-                        first_task.repeat_after_sec
+                        first_task.repeat_after_sec,
                     )
                 successful = _execute_task(first_task)
                 if not successful and first_task.repeat_after_sec != 0:
                     # the task was added already so on failure we remove it
-                    remove_all(first_task.module_name,
-                               first_task.function_name)
+                    remove_all(first_task.module_name, first_task.function_name)
             else:
                 # Wake up from light sleep 1 sec before the next task executes
                 # to allow sleeping milliseconds in order to execute the task on time.
                 WAKE_UP_SEC_BEFORE_TASK_EXECUTES = 1
                 if allow_deep_sleep and time_until_first_task > DEEP_SLEEP_WAKEUP_DELAY_SEC:
-                    if (not machine.wake_reason() == machine.DEEPSLEEP_RESET
-                            and utime.time() < _start_seconds_since_epoch + initial_deep_sleep_delay_sec):
+                    if (
+                        not machine.wake_reason() == machine.DEEPSLEEP_RESET
+                        and utime.time() < _start_seconds_since_epoch + initial_deep_sleep_delay_sec
+                    ):
                         # initial deep sleep delay
                         remaining_no_deep_sleep_sec = (
-                            _start_seconds_since_epoch + initial_deep_sleep_delay_sec) - utime.time()
-                        if (time_until_first_task - WAKE_UP_SEC_BEFORE_TASK_EXECUTES > remaining_no_deep_sleep_sec):
+                            _start_seconds_since_epoch + initial_deep_sleep_delay_sec
+                        ) - utime.time()
+                        if time_until_first_task - WAKE_UP_SEC_BEFORE_TASK_EXECUTES > remaining_no_deep_sleep_sec:
                             # deep sleep prevention on cold boot
-                            print("sleepscheduler: sleep({}) due to cold boot".format(
-                                remaining_no_deep_sleep_sec))
+                            print("sleepscheduler: sleep({}) due to cold boot".format(remaining_no_deep_sleep_sec))
                             utime.sleep(remaining_no_deep_sleep_sec)
                         else:
-                            print("sleepscheduler: sleep({}) due to cold boot".format(
-                                time_until_first_task - WAKE_UP_SEC_BEFORE_TASK_EXECUTES))
-                            utime.sleep(time_until_first_task -
-                                        WAKE_UP_SEC_BEFORE_TASK_EXECUTES)
+                            print(
+                                "sleepscheduler: sleep({}) due to cold boot".format(
+                                    time_until_first_task - WAKE_UP_SEC_BEFORE_TASK_EXECUTES
+                                )
+                            )
+                            utime.sleep(time_until_first_task - WAKE_UP_SEC_BEFORE_TASK_EXECUTES)
                     else:
-                        _deep_sleep_sec(time_until_first_task -
-                                        DEEP_SLEEP_WAKEUP_DELAY_SEC)
+                        _deep_sleep_sec(time_until_first_task - DEEP_SLEEP_WAKEUP_DELAY_SEC)
                 else:
                     if time_until_first_task > WAKE_UP_SEC_BEFORE_TASK_EXECUTES:
-                        print("sleepscheduler: sleep({})".format(
-                            time_until_first_task - WAKE_UP_SEC_BEFORE_TASK_EXECUTES))
-                        utime.sleep(time_until_first_task -
-                                    WAKE_UP_SEC_BEFORE_TASK_EXECUTES)
+                        print(
+                            "sleepscheduler: sleep({})".format(time_until_first_task - WAKE_UP_SEC_BEFORE_TASK_EXECUTES)
+                        )
+                        utime.sleep(time_until_first_task - WAKE_UP_SEC_BEFORE_TASK_EXECUTES)
                     else:
                         # wait in ms to execute the task when the next second starts
                         first_task_seconds_since_epoch = first_task.seconds_since_epoch
@@ -434,14 +446,16 @@ def _run_tasks(forever):
                             utime.sleep_ms(1)
         else:
             if forever:
-                if (not machine.wake_reason() == machine.DEEPSLEEP_RESET
-                        and utime.time() < _start_seconds_since_epoch + initial_deep_sleep_delay_sec):
+                if (
+                    not machine.wake_reason() == machine.DEEPSLEEP_RESET
+                    and utime.time() < _start_seconds_since_epoch + initial_deep_sleep_delay_sec
+                ):
                     # initial deep sleep delay
                     remaining_no_deep_sleep_sec = (
-                        _start_seconds_since_epoch + initial_deep_sleep_delay_sec) - utime.time()
+                        _start_seconds_since_epoch + initial_deep_sleep_delay_sec
+                    ) - utime.time()
                     # deep sleep prevention on cold boot
-                    print("sleepscheduler: sleep({}) due to cold boot".format(
-                        remaining_no_deep_sleep_sec))
+                    print("sleepscheduler: sleep({}) due to cold boot".format(remaining_no_deep_sleep_sec))
                     utime.sleep(remaining_no_deep_sleep_sec)
                 else:
                     # deep sleep until an external interrupt occurs (if configured)
@@ -454,7 +468,5 @@ def _run_tasks(forever):
                 break
 
 
-# -------------------------------------------------------------------------------------------------
-# Init
-# -------------------------------------------------------------------------------------------------
-_restore_from_rtc_memory()
+def init():
+    _restore_from_rtc_memory()

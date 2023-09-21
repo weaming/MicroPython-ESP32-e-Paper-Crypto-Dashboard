@@ -1,80 +1,12 @@
-import sys
 import ntptime
 import utime
-import network
-import urequests as requests
-
-from machine import Pin, SPI
-import newframebuf
 import framebuf
-import epaper7in5b as epaper
 
+import newframebuf
+import urequests as requests
 import sleepscheduler as sl
-from config import WIFI_SSID, WIFI_PASSWORD, SCREEN_WIDTH as w, SCREEN_HEIGHT as h
-
-sys.path.append('.')
-
-"""
-https://randomnerdtutorials.com/esp32-spi-communication-arduino/
-https://en.wikipedia.org/wiki/Serial_Peripheral_Interface
-
-MISO: Master In Slave Out
-MOSI: Master Out Slave In
-SCK: Serial Clock
-CS/SS: Chip Select (used to select the device when multiple peripherals are used on the same SPI bus)
-
-On a slave-only device, like sensors, displays, and others, you may find a different terminology:
-
-MISO may be labeled as SDO (Serial Data Out)
-MOSI may be labeled as SDI (Serial Data In)
-
-
-DC: Data/Command
-RST: ReST
-SCK: Serial ClocK
-"""
-
-# v0
-miso = Pin(0)
-mosi = Pin(19)
-sck = Pin(18)
-cs = Pin(12)
-dc = Pin(0)
-rst = Pin(17)
-busy = Pin(32)
-
-# HSPI on ESP32
-miso = Pin(12)
-mosi = Pin(13)
-sck = Pin(14)
-cs = Pin(15)
-
-# VSPI on ESP32
-miso = Pin(19)
-mosi = Pin(23)
-sck = Pin(18)
-cs = Pin(5)  # or 33 ?
-
-dc = Pin(32)
-rst = Pin(19)
-busy = Pin(35)
-
-# GDEY075Z08
-sck = Pin(13)
-dc = Pin(11)
-cs = Pin(12)
-rst = Pin(10)
-busy = Pin(9)
-
-# https://docs.micropython.org/en/latest/library/machine.SPI.html#machine.SPI.init
-spi = SPI(2, baudrate=20000000, polarity=0, phase=0, sck=sck, miso=miso, mosi=mosi)
-
-e = epaper.EPD(spi, cs, dc, rst, busy)
-e.init()
-
-black = 0
-white = 1
-yellow = 2
+from epaper7in5b import EPD
+from device import white, black, yellow
 
 
 def get_symbol_price():
@@ -134,18 +66,7 @@ def get_bgb_price():
         return '--'
 
 
-def wifi_connect():
-    wlan = network.WLAN(network.STA_IF)
-    if not wlan.isconnected():
-        print("connecting to network")
-        wlan.active(True)
-        wlan.connect(WIFI_SSID, WIFI_PASSWORD)
-        while not wlan.isconnected():
-            print(".", end="")
-            utime.sleep(1)
-    print('network config:', wlan.ifconfig())
-
-
+# TODO
 def get_vars() -> dict:
     btc, eth, hope, ts = get_symbol_price()
     lt = get_lt_price()
@@ -175,13 +96,11 @@ def ts_as_datetime_str(ts):
     return "{:04d}-{:02d}-{:02d} {:02d}:{:02d}".format(year, month, day, hours, minutes)
 
 
-buf = bytearray(w * h // 8)
-fb = newframebuf.FrameBuffer(buf, h, w, newframebuf.MHMSB)
-fb.rotation = 0  # 调整显示的方向，可以在0/1/2/3之间选择
-
-
-def display():
-    # wifi_connect()
+def display(e: EPD):
+    w, h = e.width, e.height
+    buf = bytearray(w * h // 8)
+    fb = newframebuf.FrameBuffer(buf, h, w, newframebuf.MHMSB)
+    fb.rotation = 0  # 调整显示的方向，可以在0/1/2/3之间选择
 
     fb.fill(white)
     fb.text("hello", 60, 10, black, size=3)
@@ -210,11 +129,10 @@ def calibration_time():
         print("calibration_time to: {}".format(utime.localtime()))
 
 
-def init_on_cold_boot():
+def init_on_cold_boot(wifi=False):
     print('init_on_cold_boot...')
-    # wifi_connect()
-
-    # the time is kept during deep sleep
-    calibration_time()
+    if wifi:
+        wifi_connect()
+        calibration_time()  # the time is kept during deep sleep
 
     sl.schedule_immediately(__name__, display, 60 * 5)

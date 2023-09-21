@@ -70,3 +70,10 @@ Hash of data verified.
 Leaving...
 Hard resetting via RTS pin...
 ```
+
+## ReFlush MicroPython
+
+```shell
+esptool.py --chip esp32 --port /dev/cu.usbserial-110 erase_flash && \
+    esptool.py --chip esp32 --port /dev/cu.usbserial-110 --baud 460800 write_flash -z 0x1000 ESP32_GENERIC-20230426-v1.20.0.bin
+```

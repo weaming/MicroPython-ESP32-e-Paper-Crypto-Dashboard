@@ -1,4 +1,5 @@
 # This file is executed on every boot (including wake-boot from deepsleep)
+print('boot...')
 
 # import esp
 # import webrepl
@@ -6,7 +7,13 @@
 # webrepl.start()
 
 import sleepscheduler as sl
-import coin_price_dashboard
+import coin_pricer as dashboard
 
-sl.schedule_on_cold_boot(coin_price_dashboard.init_on_cold_boot)
-sl.run_forever()
+
+def bgtask():
+    sl.init()
+    sl.schedule_on_cold_boot(dashboard.init_on_cold_boot)
+    sl.run_forever()
+
+
+# bgtask()

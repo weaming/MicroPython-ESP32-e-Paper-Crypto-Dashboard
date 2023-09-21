@@ -2,15 +2,15 @@
 copy from https://github.com/mcauser/micropython-waveshare-epaper/blob/master/epaper7in5b.py
 
 MicroPython Waveshare 7.5" Black/White/Red GDEY075Z08 e-paper display driver
+Also works for black/white/yellow GDEW075C21?
 """
-
-# also works for black/white/yellow GDEW075C21?
 
 from micropython import const
 from time import sleep_ms
 import ustruct
 
 # Display resolution
+# https://www.good-display.cn/product/386.html
 EPD_WIDTH = const(800)
 EPD_HEIGHT = const(480)
 
@@ -74,6 +74,7 @@ class EPD:
     def _command(self, command, data=None):
         self.dc(0)
         self.cs(0)
+        print('cmd', command)
         self.spi.write(bytearray([command]))
         self.cs(1)
         if data is not None:
@@ -86,6 +87,7 @@ class EPD:
         self.cs(1)
 
     def init(self):
+        print('init...')
         self.reset()
         self._command(POWER_SETTING, b'\x37\x00')
         self._command(PANEL_SETTING, b'\xCF\x08')
@@ -99,10 +101,14 @@ class EPD:
         self._command(TCON_RESOLUTION, ustruct.pack(">HH", EPD_WIDTH, EPD_HEIGHT))
         self._command(VCM_DC_SETTING, b'\x1E')  # decide by LUT file
         self._command(FLASH_MODE, b'\x03')
+        print('inited.')
 
     def wait_until_idle(self):
+        ms = 100
         while self.busy.value() == BUSY:
-            sleep_ms(100)
+            print('wait for idle')
+            ms *= 2
+            sleep_ms(min(ms, 10000))
 
     def reset(self):
         self.rst(0)
