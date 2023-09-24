@@ -55,10 +55,15 @@ VCM_DC_SETTING = 0x82
 FLASH_MODE = const(0xE5)
 
 BUSY = const(0)  # 0=busy, 1=idle
+WHITE = const(0xFF)
+
+black = 0
+yellow = 0
+white = 1
 
 
 class EPD:
-    def __init__(self, spi, cs, dc, rst, busy):
+    def __init__(self, spi, cs, dc, rst, busy, yellow_bounds=(64, 192)):
         self.spi = spi
         self.cs = cs
         self.dc = dc
@@ -70,11 +75,15 @@ class EPD:
         self.busy.init(self.busy.IN)
         self.width = EPD_WIDTH
         self.height = EPD_HEIGHT
+        self.yellow_bounds = yellow_bounds
 
     def _command(self, command, data=None):
         self.dc(0)
         self.cs(0)
-        print('cmd', command, data)
+        if data:
+            print('cmd', command, data)
+        else:
+            print('cmd', command)
         self.spi.write(bytearray([command]))
         self.cs(1)
         if data is not None:
@@ -126,73 +135,85 @@ class EPD:
         self.wait_until_idle()
         self._command(DEEP_SLEEP, b'\xA5')
 
+    # functions for display
+
     def clear_frame(self, buf_white, buf_yellow=None):
         for i in range(int(self.width * self.height / 8)):
-            buf_white[i] = 0xFF
+            buf_white[i] = WHITE
             if buf_yellow is not None:
-                buf_yellow[i] = 0xFF
+                buf_yellow[i] = WHITE
+
+    # copy from https://github.com/zhufucdev/gdey075z08_driver/blob/main/src/gdey075z08_driver/driver.py#L155
+    # pixels of 8bit image with 256 colors of each pixel
+    def get_frame_buffer(self, pixels: [bytes]):
+        buf_white = [WHITE] * int(self.height * self.width / 8)
+        buf_yellow = [0x00] * int(self.height * self.width / 8)
+
+        for y in range(self.height):
+            for x in range(int(self.width / 8)):
+                sign_w = WHITE
+                sign_y = 0x00
+                for i in range(0, 8):
+                    p = pixels[x * 8 + i, y]
+                    # 0x80 = 0b10000000
+                    if p < self.yellow_bounds[0]:
+                        sign_w &= ~(0x80 >> i)  # set from white to black
+                    elif p < self.yellow_bounds[1]:
+                        sign_y |= 0x80 >> i  # set from black to yellow
+                index = x + int(y * self.width / 8)
+                buf_white[index] = sign_w
+                buf_yellow[index] = sign_y
+        return buf_white, buf_yellow
+
+    def write_buffer(self, buf):
+        for data in buf:
+            self._data(data)
+        sleep_ms(100)
+
+    def write_white_layer(self, buf, refresh=False):
+        self._command(DATA_START_TRANSMISSION_1)
+        self.write_buffer(buf)
+        if refresh:
+            print('display refresh ...')
+            self._command(DISPLAY_REFRESH)
+            self.wait_until_idle()
+
+    def write_yellow_layer(self, buf, refresh=False):
+        self._command(DATA_START_TRANSMISSION_2)
+        self.write_buffer(buf)
+        if refresh:
+            print('display refresh ...')
+            self._command(DISPLAY_REFRESH)
+            self.wait_until_idle()
+
+    def clear_screen(self):
+        print('clear_screen...')
+        self.clear_white_layer()
+        self.clear_yellow_layer()
+        print('screen cleared.')
+
+    def clear_white_layer(self):
+        self._command(DATA_START_TRANSMISSION_1)
+        for _ in range(0, self.width * self.height / 8):
+            self._data(WHITE)
+
+    def clear_yellow_layer(self):
+        self._command(DATA_START_TRANSMISSION_2)
+        for _ in range(0, self.width * self.height / 8):
+            self._data(WHITE)
 
     def display_frame(self, buf_white, buf_yellow=None):
         print('display_frame...')
-        if buf_white is not None:
-            print('draw white layer...')
-            self._command(DATA_START_TRANSMISSION_1)
-            sleep_ms(100)
-            for i in range(0, self.width * self.height / 8):
-                temp = 0x00
-                # 0xC0 = 0b11000000
-                # 0x80 = 0b10000000
-                for bit in range(0, 4):
-                    if buf_white[i] & (0x80 >> bit) != 0:
-                        temp |= 0xC0 >> (bit * 2)
-                self._data(temp)
 
-                temp = 0x00
-                for bit in range(4, 8):
-                    if buf_white[i] & (0x80 >> bit) != 0:
-                        temp |= 0xC0 >> ((bit - 4) * 2)
-                self._data(temp)
-            sleep_ms(100)
-        elif buf_yellow is not None:
-            print('clear white layer...')
-            self._command(DATA_START_TRANSMISSION_1)
-            sleep_ms(100)
-            for i in range(0, self.width * self.height / 8):
-                self._data(0xFF)  # white
-            sleep_ms(100)
+        if buf_white:
+            self.write_white_layer(buf_white)
+        elif buf_yellow:
+            self.clear_yellow_layer()
 
-        if buf_yellow is not None:
-            print('draw yellow layer...')
-            self._command(DATA_START_TRANSMISSION_2)
-            sleep_ms(100)
-            for i in range(0, self.width * self.height / 8):
-                self._data(buf_yellow[i])
-            sleep_ms(100)
-        elif buf_white is not None:
-            print('clear yellow layer...')
-            self._command(DATA_START_TRANSMISSION_2)
-            sleep_ms(100)
-            for i in range(0, self.width * self.height / 8):
-                self._data(0xFF)  # white
-            sleep_ms(100)
-
-        print('display refresh ...')
-        self._command(DISPLAY_REFRESH)
-        self.wait_until_idle()
-
-    def display_frame_v2(self, buf_white, buf_yellow=None):
-        print('display_frame_v2...')
-
-        def write_buffer(buf):
-            for data in buf:
-                self._data(data)
-
-        self._command(DATA_START_TRANSMISSION_1)
-        write_buffer(buf_white)
-
-        if buf_yellow is not None:
-            self._command(DATA_START_TRANSMISSION_2)
-            write_buffer(buf_yellow)
+        if buf_yellow:
+            self.write_yellow_layer(buf_yellow)
+        elif buf_white:
+            self.clear_white_layer()
 
         print('display refresh ...')
         self._command(DISPLAY_REFRESH)

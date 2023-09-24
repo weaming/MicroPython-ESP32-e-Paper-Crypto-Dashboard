@@ -3,8 +3,8 @@ import utime
 
 import framebuf2
 import urequests as requests
-from epaper7in5b import EPD
-from device import white, black, yellow, connect_wifi, calibration_time
+from epaper7in5b import EPD, white, black, yellow
+from device import connect_wifi, calibration_time
 
 
 def get_symbol_price():

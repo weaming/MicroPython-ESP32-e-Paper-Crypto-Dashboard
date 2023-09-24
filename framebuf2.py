@@ -8,45 +8,6 @@ import struct
 MHMSB = 1  # Single bit displays like the Sharp Memory
 
 
-class MHMSBFormat:
-    """MHMSBFormat"""
-
-    @staticmethod
-    def set_pixel(framebuf, x, y, color):
-        """Set a given pixel to a color."""
-        index = (y * framebuf.stride + x) // 8
-        offset = 7 - x & 0x07
-        framebuf.buf[index] = (framebuf.buf[index] & ~(0x01 << offset)) | ((color != 0) << offset)
-
-    @staticmethod
-    def get_pixel(framebuf, x, y):
-        """Get the color of a given pixel"""
-        index = (y * framebuf.stride + x) // 8
-        offset = 7 - x & 0x07
-        return (framebuf.buf[index] >> offset) & 0x01
-
-    @staticmethod
-    def fill(framebuf, color):
-        """completely fill/clear the buffer with a color"""
-        if color:
-            fill = 0xFF
-        else:
-            fill = 0x00
-        for i in range(len(framebuf.buf)):  # pylint: disable=consider-using-enumerate
-            framebuf.buf[i] = fill
-
-    @staticmethod
-    def fill_rect(framebuf, x, y, width, height, color):
-        """Draw a rectangle at the given location, size and color. The ``fill_rect`` method draws
-        both the outline and interior."""
-        # pylint: disable=too-many-arguments
-        for _x in range(x, x + width):
-            offset = 7 - _x & 0x07
-            for _y in range(y, y + height):
-                index = (_y * framebuf.stride + _x) // 8
-                framebuf.buf[index] = (framebuf.buf[index] & ~(0x01 << offset)) | ((color != 0) << offset)
-
-
 class FrameBuffer:
     def __init__(self, buf, width, height, buf_format=MHMSB, stride=None):
         # pylint: disable=too-many-arguments
@@ -304,6 +265,45 @@ class FrameBuffer:
                     # print(" ", end="")
             print(".")
         print("." * (self.width + 2))
+
+
+class MHMSBFormat:
+    """MHMSBFormat"""
+
+    @staticmethod
+    def set_pixel(framebuf: FrameBuffer, x, y, color):
+        """Set a given pixel to a color."""
+        index = (y * framebuf.stride + x) // 8
+        offset = 7 - x & 0x07
+        framebuf.buf[index] = (framebuf.buf[index] & ~(0x01 << offset)) | ((color != 0) << offset)
+
+    @staticmethod
+    def get_pixel(framebuf: FrameBuffer, x, y):
+        """Get the color of a given pixel"""
+        index = (y * framebuf.stride + x) // 8
+        offset = 7 - x & 0x07
+        return (framebuf.buf[index] >> offset) & 0x01
+
+    @staticmethod
+    def fill(framebuf: FrameBuffer, color):
+        """completely fill/clear the buffer with a color"""
+        if color:
+            fill = 0xFF
+        else:
+            fill = 0x00
+        for i in range(len(framebuf.buf)):  # pylint: disable=consider-using-enumerate
+            framebuf.buf[i] = fill
+
+    @staticmethod
+    def fill_rect(framebuf: FrameBuffer, x, y, width, height, color):
+        """Draw a rectangle at the given location, size and color. The ``fill_rect`` method draws
+        both the outline and interior."""
+        # pylint: disable=too-many-arguments
+        for _x in range(x, x + width):
+            offset = 7 - _x & 0x07
+            for _y in range(y, y + height):
+                index = (_y * framebuf.stride + _x) // 8
+                framebuf.buf[index] = (framebuf.buf[index] & ~(0x01 << offset)) | ((color != 0) << offset)
 
 
 # MicroPython basic bitmap font renderer.

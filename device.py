@@ -50,10 +50,6 @@ miso = Pin(19)
 mosi = Pin(23)
 sck = Pin(18)
 
-black = 0
-white = 1
-yellow = 2
-
 # https://docs.micropython.org/en/latest/library/machine.SPI.html#machine.SPI.init
 spi = SPI(2, baudrate=20000000, polarity=0, phase=0, sck=sck, miso=miso, mosi=mosi)
 epd = epaper.EPD(spi, cs, dc, rst, busy)
