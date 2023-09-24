@@ -171,6 +171,7 @@ class EPD:
         sleep_ms(100)
 
     def write_white_layer(self, buf, refresh=False):
+        print('write_white_layer...')
         self._command(DATA_START_TRANSMISSION_1)
         self.write_buffer(buf)
         if refresh:
@@ -179,6 +180,7 @@ class EPD:
             self.wait_until_idle()
 
     def write_yellow_layer(self, buf, refresh=False):
+        print('write_yellow_layer...')
         self._command(DATA_START_TRANSMISSION_2)
         self.write_buffer(buf)
         if refresh:
