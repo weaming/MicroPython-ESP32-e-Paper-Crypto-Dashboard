@@ -4,8 +4,9 @@ Driver for 7.5 inch e-Paper display on ESP32 with MicroPython, for Crypto Price 
 
 ## Todo list:
 
+- [x] Display white/black/yellow colors
+- [x] Price Tracker from DexScreener/[hope.money](https://hope.money)
 - [x] Deep Sleep
-- [x] Price Tracker from dex scanner api
 - [ ] WiFi Manager
 
 ## Playing

@@ -1,7 +1,7 @@
 # This file is executed on every boot (including wake-boot from deepsleep)
 print('boot...')
 
-from coin_pricer import prepare, entry
+from price_tracker import prepare, entry
 import sleepscheduler as sl
 
 

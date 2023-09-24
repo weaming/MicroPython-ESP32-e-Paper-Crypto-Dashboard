@@ -1,6 +1,5 @@
 # import framebuf  # https://docs.micropython.org/en/latest/library/framebuf.html#framebuf.FrameBuffer
 import utime
-import network
 
 import framebuf2
 import urequests as requests
