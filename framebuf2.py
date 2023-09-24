@@ -1,97 +1,11 @@
-# copy from https://github.com/adafruit/Adafruit_CircuitPython_framebuf/blob/main/adafruit_framebuf.py
-# SPDX-FileCopyrightText: <text> 2018 Kattni Rembor, Melissa LeBlanc-Williams
-# and Tony DiCola, for Adafruit Industries.
-# Original file created by Damien P. George </text>
-#
-# SPDX-License-Identifier: MIT
-
-"""
-`adafruit_framebuf`
-====================================================
-
-CircuitPython pure-python framebuf module, based on the micropython framebuf module.
-
-Implementation Notes
---------------------
-
-**Hardware:**
-
-* `Adafruit SSD1306 OLED displays <https://www.adafruit.com/?q=ssd1306>`_
-* `Adafruit HT16K33 Matrix displays <https://www.adafruit.com/?q=ht16k33>`_
-
-**Software and Dependencies:**
-
-* Adafruit CircuitPython firmware for the supported boards:
-  https://github.com/adafruit/circuitpython/releases
-
-"""
-
-__version__ = "0.0.0+auto.0"
-__repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_framebuf.git"
+# copy from https://github.com/lijiachang/MicroPython-ESP32-e-Paper-Crypto-Display/blob/main/newframebuf.py
+# full version: https://github.com/adafruit/Adafruit_CircuitPython_framebuf/blob/main/adafruit_framebuf.py
 
 import os
 import struct
 
 # Framebuf format constants:
-MVLSB = 0  # Single bit displays (like SSD1306 OLED)
-RGB565 = 1  # 16-bit color displays
-GS4_HMSB = 2  # Unimplemented!
-MHMSB = 3  # Single bit displays like the Sharp Memory
-RGB888 = 4  # Neopixels and Dotstars
-GS2_HMSB = 5  # 2-bit color displays like the HT16K33 8x8 Matrix
-
-
-class GS2HMSBFormat:
-    """GS2HMSBFormat"""
-
-    @staticmethod
-    def set_pixel(framebuf, x, y, color):
-        """Set a given pixel to a color."""
-        index = (y * framebuf.stride + x) >> 2
-        pixel = framebuf.buf[index]
-
-        shift = (x & 0b11) << 1
-        mask = 0b11 << shift
-        color = (color & 0b11) << shift
-
-        framebuf.buf[index] = color | (pixel & (~mask))
-
-    @staticmethod
-    def get_pixel(framebuf, x, y):
-        """Get the color of a given pixel"""
-        index = (y * framebuf.stride + x) >> 2
-        pixel = framebuf.buf[index]
-
-        shift = (x & 0b11) << 1
-        return (pixel >> shift) & 0b11
-
-    @staticmethod
-    def fill(framebuf, color):
-        """completely fill/clear the buffer with a color"""
-        if color:
-            bits = color & 0b11
-            fill = (bits << 6) | (bits << 4) | (bits << 2) | (bits << 0)
-        else:
-            fill = 0x00
-
-        framebuf.buf = [fill for i in range(len(framebuf.buf))]
-
-    @staticmethod
-    def rect(framebuf, x, y, width, height, color):
-        """Draw the outline of a rectangle at the given location, size and color."""
-        # pylint: disable=too-many-arguments
-        for _x in range(x, x + width):
-            for _y in range(y, y + height):
-                if _x in [x, x + width] or _y in [y, y + height]:
-                    GS2HMSBFormat.set_pixel(framebuf, _x, _y, color)
-
-    @staticmethod
-    def fill_rect(framebuf, x, y, width, height, color):
-        """Draw the outline and interior of a rectangle at the given location, size and color."""
-        # pylint: disable=too-many-arguments
-        for _x in range(x, x + width):
-            for _y in range(y, y + height):
-                GS2HMSBFormat.set_pixel(framebuf, _x, _y, color)
+MHMSB = 1  # Single bit displays like the Sharp Memory
 
 
 class MHMSBFormat:
@@ -133,155 +47,8 @@ class MHMSBFormat:
                 framebuf.buf[index] = (framebuf.buf[index] & ~(0x01 << offset)) | ((color != 0) << offset)
 
 
-class MVLSBFormat:
-    """MVLSBFormat"""
-
-    @staticmethod
-    def set_pixel(framebuf, x, y, color):
-        """Set a given pixel to a color."""
-        index = (y >> 3) * framebuf.stride + x
-        offset = y & 0x07
-        framebuf.buf[index] = (framebuf.buf[index] & ~(0x01 << offset)) | ((color != 0) << offset)
-
-    @staticmethod
-    def get_pixel(framebuf, x, y):
-        """Get the color of a given pixel"""
-        index = (y >> 3) * framebuf.stride + x
-        offset = y & 0x07
-        return (framebuf.buf[index] >> offset) & 0x01
-
-    @staticmethod
-    def fill(framebuf, color):
-        """completely fill/clear the buffer with a color"""
-        if color:
-            fill = 0xFF
-        else:
-            fill = 0x00
-        for i in range(len(framebuf.buf)):  # pylint: disable=consider-using-enumerate
-            framebuf.buf[i] = fill
-
-    @staticmethod
-    def fill_rect(framebuf, x, y, width, height, color):
-        """Draw a rectangle at the given location, size and color. The ``fill_rect`` method draws
-        both the outline and interior."""
-        # pylint: disable=too-many-arguments
-        while height > 0:
-            index = (y >> 3) * framebuf.stride + x
-            offset = y & 0x07
-            for w_w in range(width):
-                framebuf.buf[index + w_w] = (framebuf.buf[index + w_w] & ~(0x01 << offset)) | ((color != 0) << offset)
-            y += 1
-            height -= 1
-
-
-class RGB565Format:
-    """
-    This class implements the RGB565 format
-    It assumes a little-endian byte order in the frame buffer
-    """
-
-    @staticmethod
-    def color_to_rgb565(color):
-        """Convert a color in either tuple or 24 bit integer form to RGB565,
-        and return as two bytes"""
-        if isinstance(color, tuple):
-            hibyte = (color[0] & 0xF8) | (color[1] >> 5)
-            lobyte = ((color[1] << 5) & 0xE0) | (color[2] >> 3)
-        else:
-            hibyte = ((color >> 16) & 0xF8) | ((color >> 13) & 0x07)
-            lobyte = ((color >> 5) & 0xE0) | ((color >> 3) & 0x1F)
-        return bytes([lobyte, hibyte])
-
-    def set_pixel(self, framebuf, x, y, color):
-        """Set a given pixel to a color."""
-        index = (y * framebuf.stride + x) * 2
-        framebuf.buf[index : index + 2] = self.color_to_rgb565(color)
-
-    @staticmethod
-    def get_pixel(framebuf, x, y):
-        """Get the color of a given pixel"""
-        index = (y * framebuf.stride + x) * 2
-        lobyte, hibyte = framebuf.buf[index : index + 2]
-        r = hibyte & 0xF8
-        g = ((hibyte & 0x07) << 5) | ((lobyte & 0xE0) >> 5)
-        b = (lobyte & 0x1F) << 3
-        return (r << 16) | (g << 8) | b
-
-    def fill(self, framebuf, color):
-        """completely fill/clear the buffer with a color"""
-        rgb565_color = self.color_to_rgb565(color)
-        for i in range(0, len(framebuf.buf), 2):
-            framebuf.buf[i : i + 2] = rgb565_color
-
-    def fill_rect(self, framebuf, x, y, width, height, color):
-        """Draw a rectangle at the given location, size and color. The ``fill_rect`` method draws
-        both the outline and interior."""
-        # pylint: disable=too-many-arguments
-        rgb565_color = self.color_to_rgb565(color)
-        for _y in range(2 * y, 2 * (y + height), 2):
-            offset2 = _y * framebuf.stride
-            for _x in range(2 * x, 2 * (x + width), 2):
-                index = offset2 + _x
-                framebuf.buf[index : index + 2] = rgb565_color
-
-
-class RGB888Format:
-    """RGB888Format"""
-
-    @staticmethod
-    def set_pixel(framebuf, x, y, color):
-        """Set a given pixel to a color."""
-        index = (y * framebuf.stride + x) * 3
-        if isinstance(color, tuple):
-            framebuf.buf[index : index + 3] = bytes(color)
-        else:
-            framebuf.buf[index : index + 3] = bytes(((color >> 16) & 255, (color >> 8) & 255, color & 255))
-
-    @staticmethod
-    def get_pixel(framebuf, x, y):
-        """Get the color of a given pixel"""
-        index = (y * framebuf.stride + x) * 3
-        return (framebuf.buf[index] << 16) | (framebuf.buf[index + 1] << 8) | framebuf.buf[index + 2]
-
-    @staticmethod
-    def fill(framebuf, color):
-        """completely fill/clear the buffer with a color"""
-        fill = (color >> 16) & 255, (color >> 8) & 255, color & 255
-        for i in range(0, len(framebuf.buf), 3):
-            framebuf.buf[i : i + 3] = bytes(fill)
-
-    @staticmethod
-    def fill_rect(framebuf, x, y, width, height, color):
-        """Draw a rectangle at the given location, size and color. The ``fill_rect`` method draws
-        both the outline and interior."""
-        # pylint: disable=too-many-arguments
-        fill = (color >> 16) & 255, (color >> 8) & 255, color & 255
-        for _x in range(x, x + width):
-            for _y in range(y, y + height):
-                index = (_y * framebuf.stride + _x) * 3
-                framebuf.buf[index : index + 3] = bytes(fill)
-
-
 class FrameBuffer:
-    """FrameBuffer object.
-
-    :param buf: An object with a buffer protocol which must be large enough to contain every
-                pixel defined by the width, height and format of the FrameBuffer.
-    :param width: The width of the FrameBuffer in pixel
-    :param height: The height of the FrameBuffer in pixel
-    :param buf_format: Specifies the type of pixel used in the FrameBuffer; permissible values
-                        are listed under Constants below. These set the number of bits used to
-                        encode a color value and the layout of these bits in ``buf``. Where a
-                        color value c is passed to a method, c is  a small integer with an encoding
-                        that is dependent on the format of the FrameBuffer.
-    :param stride: The number of pixels between each horizontal line of pixels in the
-                   FrameBuffer. This defaults to ``width`` but may need adjustments when
-                   implementing a FrameBuffer within another larger FrameBuffer or screen. The
-                   ``buf`` size must accommodate an increased step size.
-
-    """
-
-    def __init__(self, buf, width, height, buf_format=MVLSB, stride=None):
+    def __init__(self, buf, width, height, buf_format=MHMSB, stride=None):
         # pylint: disable=too-many-arguments
         self.buf = buf
         self.width = width
@@ -290,16 +57,8 @@ class FrameBuffer:
         self._font = None
         if self.stride is None:
             self.stride = width
-        if buf_format == MVLSB:
-            self.format = MVLSBFormat()
-        elif buf_format == MHMSB:
+        if buf_format == MHMSB:
             self.format = MHMSBFormat()
-        elif buf_format == RGB888:
-            self.format = RGB888Format()
-        elif buf_format == RGB565:
-            self.format = RGB565Format()
-        elif buf_format == GS2_HMSB:
-            self.format = GS2HMSBFormat()
         else:
             raise ValueError("invalid format")
         self._rotation = 0
@@ -470,7 +229,6 @@ class FrameBuffer:
     # pylint: disable=too-many-arguments
     def text(self, string, x, y, color, *, font_name="font5x8.bin", size=1):
         """Place text on the screen in variables sizes. Breaks on \n to next line.
-
         Does not break on line going off screen.
         """
         # determine our effective width/height, taking rotation into account
@@ -507,14 +265,9 @@ class FrameBuffer:
         if self.rotation in (1, 3):
             width, height = height, width
 
-        if isinstance(self.format, (RGB565Format, RGB888Format)) and img.mode != "RGB":
-            raise ValueError("Image must be in mode RGB.")
-        if isinstance(self.format, (MHMSBFormat, MVLSBFormat)) and img.mode != "1":
-            raise ValueError("Image must be in mode 1.")
-
         imwidth, imheight = img.size
         if imwidth != width or imheight != height:
-            raise ValueError(f"Image must be same dimensions as display ({width}x{height}).")
+            raise ValueError("Image must be same dimensions as display ({0}x{1}).".format(width, height))
         # Grab all the pixels from the image, faster than getpixel.
         pixels = img.load()
         # Clear buffer
@@ -532,11 +285,23 @@ class FrameBuffer:
         print("." * (self.width + 2))
         for y in range(self.height):
             print(".", end="")
+            prev = '*'
+            n = 0
             for x in range(self.width):
                 if self.pixel(x, y):
-                    print("*", end="")
+                    if prev != '*':
+                        print(f'{n}*', end='')
+                        n = 0
+                        prev = '*'
+                    n += 1
+                    # print("*", end="")
                 else:
-                    print(" ", end="")
+                    if prev != ' ':
+                        print(f'{n} ', end='')
+                        n = 0
+                        prev = ' '
+                    n += 1
+                    # print(" ", end="")
             print(".")
         print("." * (self.width + 2))
 

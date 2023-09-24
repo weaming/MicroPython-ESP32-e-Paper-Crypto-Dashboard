@@ -30,6 +30,7 @@ SCK: Serial ClocK
 import network
 import ntptime
 import utime
+import gc
 from machine import Pin, SPI
 import epaper7in5b as epaper
 from config import WIFI_SSID, WIFI_PASSWORD
@@ -60,6 +61,12 @@ epd = epaper.EPD(spi, cs, dc, rst, busy)
 
 def connect_device():
     epd.init()
+
+
+def print_mem():
+    alloc = gc.mem_alloc()
+    free = gc.mem_free()
+    print(f'Memory: allocated {alloc} bytes, free {free} bytes, total {alloc+free} bytes')
 
 
 def connect_wifi():

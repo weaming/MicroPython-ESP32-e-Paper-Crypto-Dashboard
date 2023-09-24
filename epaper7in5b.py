@@ -6,7 +6,7 @@ MicroPython Waveshare 7.5" Black/White/Yellow GDEW075C64 e-paper display driver
 """
 
 from micropython import const
-from time import sleep_ms
+from utime import sleep_ms
 import ustruct
 
 # Display resolution
@@ -74,7 +74,7 @@ class EPD:
     def _command(self, command, data=None):
         self.dc(0)
         self.cs(0)
-        print('cmd', command)
+        print('cmd', command, data)
         self.spi.write(bytearray([command]))
         self.cs(1)
         if data is not None:
@@ -83,6 +83,8 @@ class EPD:
     def _data(self, data):
         self.dc(1)
         self.cs(0)
+        if isinstance(data, int):
+            data = data.to_bytes(1, 'big')
         self.spi.write(data)
         self.cs(1)
 
@@ -105,10 +107,12 @@ class EPD:
 
     def wait_until_idle(self):
         ms = 100
+        ms_max = 3000
         while self.busy.value() == BUSY:
             print('wait for idle')
-            ms *= 2
-            sleep_ms(min(ms, 10000))
+            if ms < ms_max:
+                ms *= 2
+            sleep_ms(min(ms, ms_max))
 
     def reset(self):
         self.rst(0)
@@ -116,90 +120,80 @@ class EPD:
         self.rst(1)
         sleep_ms(200)
 
-    # draw the current frame memory
-    def display_frame(self, frame_buffer):
-        self._command(DATA_START_TRANSMISSION_1)
-        for i in range(0, self.width * self.height // 4):
-            try:
-                temp1 = frame_buffer[i]
-            except IndexError as e:
-                print(e)
-                break
-            j = 0
-            while j < 4:
-                if (temp1 & 0xC0) == 0xC0:
-                    temp2 = 0x03
-                elif (temp1 & 0xC0) == 0x00:
-                    temp2 = 0x00
-                else:
-                    temp2 = 0x04
-                temp2 = (temp2 << 4) & 0xFF
-                temp1 = (temp1 << 2) & 0xFF
-                j += 1
-                if (temp1 & 0xC0) == 0xC0:
-                    temp2 |= 0x03
-                elif (temp1 & 0xC0) == 0x00:
-                    temp2 |= 0x00
-                else:
-                    temp2 |= 0x04
-                temp1 = (temp1 << 2) & 0xFF
-                self._data(bytearray([temp2]))
-                j += 1
-        self._command(DISPLAY_REFRESH)
-        sleep_ms(100)
-        self.wait_until_idle()
-
     # to wake call reset() or init()
     def sleep(self):
         self._command(POWER_OFF)
         self.wait_until_idle()
         self._command(DEEP_SLEEP, b'\xA5')
 
-    # copy from https://github.com/zhufucdev/gdey075z08_driver/blob/main/src/gdey075z08_driver/driver.py
+    def clear_frame(self, buf_white, buf_yellow=None):
+        for i in range(int(self.width * self.height / 8)):
+            buf_white[i] = 0xFF
+            if buf_yellow is not None:
+                buf_yellow[i] = 0xFF
 
-    def get_frame_buffer(self, image):
-        buf_w = [0xFF] * int(self.height * self.width / 8)
-        buf_r = [0x00] * int(self.height * self.width / 8)
-        # Set buffer to value of Python Imaging Library image.
-        # Image must be in mode L.
-        image_grayscale = image.convert('L')
-        imwidth, imheight = image_grayscale.size
-        if imwidth != self.width or imheight != self.height:
-            raise ValueError(
-                'Image must be same dimensions as display \
-                ({0}x{1}).'.format(
-                    self.width, self.height
-                )
-            )
+    def display_frame(self, buf_white, buf_yellow=None):
+        print('display_frame...')
+        if buf_white is not None:
+            print('draw white layer...')
+            self._command(DATA_START_TRANSMISSION_1)
+            sleep_ms(100)
+            for i in range(0, self.width * self.height / 8):
+                temp = 0x00
+                # 0xC0 = 0b11000000
+                # 0x80 = 0b10000000
+                for bit in range(0, 4):
+                    if buf_white[i] & (0x80 >> bit) != 0:
+                        temp |= 0xC0 >> (bit * 2)
+                self._data(temp)
 
-        pixels = image_grayscale.load()
-        for y in range(self.height):
-            for x in range(int(self.width / 8)):
-                sign_w = 0xFF
-                sign_r = 0x00
-                for i in range(0, 8):
-                    p = pixels[x * 8 + i, y]
-                    if p < self.red_bounds[0]:
-                        sign_w &= ~(0x80 >> i)
-                    elif p < self.red_bounds[1]:
-                        sign_r |= 0x80 >> i
-                index = x + int(y * self.width / 8)
-                buf_w[index] = sign_w
-                buf_r[index] = sign_r
-        return buf_w, buf_r
+                temp = 0x00
+                for bit in range(4, 8):
+                    if buf_white[i] & (0x80 >> bit) != 0:
+                        temp |= 0xC0 >> ((bit - 4) * 2)
+                self._data(temp)
+            sleep_ms(100)
+        elif buf_yellow is not None:
+            print('clear white layer...')
+            self._command(DATA_START_TRANSMISSION_1)
+            sleep_ms(100)
+            for i in range(0, self.width * self.height / 8):
+                self._data(0xFF)  # white
+            sleep_ms(100)
 
-    def display_frame_2(self, frame_buffer):
-        buf_w, buf_r = frame_buffer
+        if buf_yellow is not None:
+            print('draw yellow layer...')
+            self._command(DATA_START_TRANSMISSION_2)
+            sleep_ms(100)
+            for i in range(0, self.width * self.height / 8):
+                self._data(buf_yellow[i])
+            sleep_ms(100)
+        elif buf_white is not None:
+            print('clear yellow layer...')
+            self._command(DATA_START_TRANSMISSION_2)
+            sleep_ms(100)
+            for i in range(0, self.width * self.height / 8):
+                self._data(0xFF)  # white
+            sleep_ms(100)
+
+        print('display refresh ...')
+        self._command(DISPLAY_REFRESH)
+        self.wait_until_idle()
+
+    def display_frame_v2(self, buf_white, buf_yellow=None):
+        print('display_frame_v2...')
 
         def write_buffer(buf):
             for data in buf:
                 self._data(data)
 
         self._command(DATA_START_TRANSMISSION_1)
-        write_buffer(buf_w)
-        self._command(DATA_START_TRANSMISSION_2)
-        write_buffer(buf_r)
+        write_buffer(buf_white)
 
+        if buf_yellow is not None:
+            self._command(DATA_START_TRANSMISSION_2)
+            write_buffer(buf_yellow)
+
+        print('display refresh ...')
         self._command(DISPLAY_REFRESH)
-        self.delay_ms(100)
         self.wait_until_idle()

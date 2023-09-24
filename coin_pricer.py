@@ -1,9 +1,8 @@
+# import framebuf  # https://docs.micropython.org/en/latest/library/framebuf.html#framebuf.FrameBuffer
 import utime
-import framebuf  # https://docs.micropython.org/en/latest/library/framebuf.html#framebuf.FrameBuffer
 
 import framebuf2
 import urequests as requests
-import sleepscheduler as sl
 from epaper7in5b import EPD
 from device import white, black, yellow, connect_wifi, calibration_time
 
@@ -95,9 +94,8 @@ def ts_as_datetime_str(ts):
     return "{:04d}-{:02d}-{:02d} {:02d}:{:02d}".format(year, month, day, hours, minutes)
 
 
-def display(e: EPD):
-    w, h = e.width / 4, e.height / 4
-    w, h = int(w), int(h)
+def display(epd: EPD):
+    w, h = epd.width, epd.height
     buf = bytearray(w * h // 8)
     fb = framebuf2.FrameBuffer(buf, w, h, framebuf2.MHMSB)
     fb.rotation = 0  # 调整显示的方向，可以在0/1/2/3之间选择
@@ -117,10 +115,12 @@ def display(e: EPD):
     # fb.circle(50, 150, 10, black)
 
     # fb.print()
-    e.display_frame(buf)
+    epd.display_frame(buf)
 
 
 def init_on_cold_boot(wifi=False):
+    import sleepscheduler as sl
+
     print('init_on_cold_boot...')
     if wifi:
         connect_wifi()
