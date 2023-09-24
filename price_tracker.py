@@ -8,24 +8,6 @@ from epaper7in5b import EPD, white, black, EPD_WIDTH as w, EPD_HEIGHT as h
 
 
 def get_hope_prices():
-    """
-    {
-        "hope_price_list": [
-            [
-                0.459488902720515,
-                1695556800
-            ],
-            [
-                0.45924640220177904,
-                1695558717
-            ]
-        ],
-        "btc_index_price": 26586.176666666666,
-        "eth_index_price": 1592.9533333333336,
-        "hope_index_price": 0.45924640220177904,
-        "k": 1.080180484347501e-05
-    }
-    """
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
         res = requests.request('GET', 'https://hope.money/hope-index-stage-2?period=3600', headers=headers)
@@ -54,14 +36,15 @@ def get_lt_price():
         return '--'
 
 
-def bit_com_prices():
+def bit_com_prices(bases):
     ret = {}
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
-        res = requests.request('GET', 'https://api.bit.com/um/v1/index_price?quote_currency=USD', headers=headers)
+        res = requests.request(
+            'GET', 'https://epaper.drink.cafe/bitcom/index?base=btc,eth,fil,ton&quote=USD', headers=headers
+        )
         response = res.json()
-        for x in response['data']:
-            ret[x['index_name'].split('-')[0]] = x['index_price']
+        return response['data'] or {}
     except Exception as e:
         print(e)
     return ret
@@ -70,15 +53,15 @@ def bit_com_prices():
 def get_vars() -> dict:
     btc, eth, hope, ts = get_hope_prices()  # 延迟比 dexscreener 更低
     lt = get_lt_price()
-    bitcom = bit_com_prices()
+    bitcom = bit_com_prices(['fil', 'ton'])
     return dict(
         ts=ts,
         btc=btc,
         eth=eth,
         hope=hope,
         lt=lt,
-        fil=bitcom.get('FIL', '--'),
-        ton=bitcom.get('TON', '--'),
+        fil=bitcom.get('fil', '--'),
+        ton=bitcom.get('ton', '--'),
     )
 
 

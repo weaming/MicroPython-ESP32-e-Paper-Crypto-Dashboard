@@ -1,3 +1,4 @@
+# copy from https://github.com/darolt/wsn/blob/master/python/sleep_scheduling/sleep_scheduler.py
 import machine
 import utime
 
@@ -19,11 +20,6 @@ hard reset. This gives the user time to press ctrl+t followed by ctrl+c to stop 
 upload new files."""
 allow_deep_sleep = True
 """Controls if deep sleep is done or not."""
-rtc_memory_bytes = bytearray()
-"""This library uses machine.RTC().memory() to store the list of tasks while the CPU is in deep sleep.
-When a task stores some data there too, it will be overwritten by sleepscheduler.
-A task can put data to rtc_memory_bytes instead and sleepscheduler will store and restore
-that data before and after deep sleep."""
 
 # private variables
 _start_seconds_since_epoch = utime.time()
@@ -48,32 +44,6 @@ def schedule_on_cold_boot(function):
         _start_seconds_since_epoch = utime.time()
 
 
-def schedule(module_name, function, hour, minute, second, repeat_after_sec=0):
-    """Schedule a function at the given hour and optional minute and second.
-
-    Args:
-        module_name (str): Module where the function is defined
-        function (callable/str): Function to be called. Can either be a function of a string with the fuction name
-        hour(int): The hour 0-23 to schedule the function
-        minute(int): The minute 0-59 to schedule the function
-        second(int): The second 0-59 to schedule the function
-        repeat_after_sec (int): Repeat the function every given seconds afterwards
-    Returns:
-        None
-    """
-    local_time = list(utime.localtime())
-    # http://docs.micropython.org/en/latest/library/utime.html?highlight=localtime#utime.localtime
-    local_time[3] = hour
-    local_time[4] = minute
-    local_time[5] = second
-    epoch_time = utime.mktime(local_time)
-    if epoch_time < utime.time():
-        # move to next day
-        epoch_time = epoch_time + SECONDS_PER_DAY
-
-    schedule_epoch_sec(module_name, function, epoch_time, repeat_after_sec)
-
-
 def schedule_immediately(module_name, function, repeat_after_sec=0):
     """Schedule a function as soon as possible.
 
@@ -85,58 +55,6 @@ def schedule_immediately(module_name, function, repeat_after_sec=0):
         None
     """
     schedule_epoch_sec(module_name, function, utime.time(), repeat_after_sec)
-
-
-def schedule_delayed(module_name, function, seconds, repeat_after_sec=0):
-    """Schedule a function in `seconds` from now.
-
-    Args:
-        module_name (str): Module where the function is defined
-        function (callable/str): Function to be called. Can either be a function of a string with the fuction name
-        seconds(int): Amount of seconds counted from now until the function is executed.
-        repeat_after_sec (int): Repeat the function every given seconds
-    Returns:
-        None
-    """
-    schedule_epoch_sec(module_name, function, utime.time() + seconds, repeat_after_sec)
-
-
-def schedule_next_full_minute(module_name, function, repeat_after_sec=0):
-    """Schedule a function at the next full minute.
-
-    Args:
-        module_name (str): Module where the function is defined
-        function (callable/str): Function to be called. Can either be a function of a string with the fuction name
-        repeat_after_sec (int): Repeat the function every given seconds afterwards
-    Returns:
-        None
-    """
-    local_time = list(utime.localtime())
-    # set back to the minute just passed
-    local_time[5] = 0  # seconds
-    epoch_time = utime.mktime(local_time)
-    # increment to the next full minute
-    epoch_time = epoch_time + SECONDS_PER_MINUTE
-    schedule_epoch_sec(module_name, function, epoch_time, repeat_after_sec)
-
-
-def schedule_next_full_hour(module_name, function, repeat_after_sec=0):
-    """Schedule a function at the next full hour.
-
-    Args:
-        module_name (str): Module where the function is defined
-        function (callable/str): Function to be called. Can either be a function of a string with the fuction name
-        repeat_after_sec (int): Repeat the function every given seconds afterwards
-    Returns:
-        None
-    """
-    local_time = list(utime.localtime())
-    # set back to the hour just passed
-    local_time[4] = 0  # minutes
-    epoch_time = utime.mktime(local_time)
-    # increment to the next full hour
-    epoch_time = epoch_time + SECONDS_PER_HOUR
-    schedule_epoch_sec(module_name, function, epoch_time, repeat_after_sec)
 
 
 def schedule_epoch_sec(module_name, function, seconds_since_epoch, repeat_after_sec=0):
@@ -189,53 +107,6 @@ def remove_all(module_name, function):
     _tasks = temp_tasks
 
 
-def remove_all_by_function_name(function):
-    """Remove all given functions.
-
-    Args:
-        function (callable/str): Function to be removed. Can either be a function of a string with the fuction name
-    Returns:
-        None
-    """
-    if callable(function):
-        function_name = function.__name__
-    else:
-        function_name = function
-    global _tasks
-    temp_tasks = []
-    for task in _tasks:
-        if task.function_name != function_name:
-            temp_tasks.append(task)
-    _tasks = temp_tasks
-
-
-def remove_all_by_module_name(module_name):
-    """Removes all functions of module `module_name`.
-
-    Args:
-        module_name (str): Module where the function is defined
-    Returns:
-        None
-    """
-    global _tasks
-    temp_tasks = []
-    for task in _tasks:
-        if task.module_name != module_name:
-            temp_tasks.append(task)
-    _tasks = temp_tasks
-
-
-def run_until_complete():
-    """Run the scheduler until all scheduled and repeated tasks are finished.
-
-    Args:
-        None
-    Returns:
-        None
-    """
-    _run_tasks(False)
-
-
 def run_forever():
     """Run the scheduler until the CPU performs a hard reset.
 
@@ -286,7 +157,7 @@ class Task:
 # -------------------------------------------------------------------------------------------------
 # Encoding/Decoding
 # -------------------------------------------------------------------------------------------------
-def _encode_task(task):
+def _encode_task(task: Task):
     bytes = (
         task.module_name.encode()
         + "\0"
@@ -331,12 +202,6 @@ def _encode_tasks():
         task_bytes = _encode_task(task)
         bytes = bytes + task_bytes
 
-    # add potential rtc_memory_bytes
-    try:
-        bytes = bytes + rtc_memory_bytes
-    except TypeError as e:
-        print("sleepscheduler: ERROR: Cannot store rtc_memory_bytes to RTC memory due to '{}'".format(e))
-
     # print(bytes)
     return bytes
 
@@ -351,10 +216,6 @@ def _decode_tasks(bytes):
 
     global _tasks
     _tasks = tasks
-
-    # restore potential rtc_memory_bytes
-    global rtc_memory_bytes
-    rtc_memory_bytes = bytearray(bytes[start_index : len(bytes)])
 
 
 # -------------------------------------------------------------------------------------------------
