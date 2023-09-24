@@ -75,6 +75,7 @@ class EPD:
         self.width = EPD_WIDTH
         self.height = EPD_HEIGHT
         self.yellow_bounds = yellow_bounds
+        self._inited = False
 
     def _command(self, command, data=None):
         self.dc(0)
@@ -97,6 +98,10 @@ class EPD:
         self.cs(1)
 
     def init(self):
+        if self._inited:
+            return
+        self._inited = True
+
         print('init...')
         self.reset()
         self._command(POWER_SETTING, b'\x37\x00')

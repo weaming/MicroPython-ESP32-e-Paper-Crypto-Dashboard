@@ -1,6 +1,6 @@
 import framebuf2
 from epaper7in5b import EPD, EPD_WIDTH as w, EPD_HEIGHT as h, white, black, yellow
-from device import buf
+from device import buf, epd
 
 
 def test_display(epd: EPD):
@@ -14,3 +14,7 @@ def test_display(epd: EPD):
     fb.fill(white)
     fb.text('BTC', 60, 120, yellow, size=20)
     epd.write_yellow_layer(buf, True)
+
+
+def entry():
+    test_display(epd)

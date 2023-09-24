@@ -33,6 +33,12 @@ _tasks = []
 # -------------------------------------------------------------------------------------------------
 # Public functions
 # -------------------------------------------------------------------------------------------------
+def update_priv_time():
+    """call this if you have called ntptime.settime() after import this module"""
+    global _start_seconds_since_epoch
+    _start_seconds_since_epoch = utime.time()
+
+
 def schedule_on_cold_boot(function):
     global _start_seconds_since_epoch
     if not machine.wake_reason() is machine.DEEPSLEEP_RESET:
@@ -469,4 +475,5 @@ def _run_tasks(forever):
 
 
 def init():
+    update_priv_time()
     _restore_from_rtc_memory()

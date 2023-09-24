@@ -54,8 +54,6 @@ sck = Pin(18)
 spi = SPI(2, baudrate=20000000, polarity=0, phase=0, sck=sck, miso=miso, mosi=mosi)
 epd = epaper.EPD(spi, cs, dc, rst, busy)
 
-# global shared flag
-wifi = False
 # global shared buf to save memory
 buf = bytearray(epaper.EPD_WIDTH * epaper.EPD_HEIGHT // 8)
 
@@ -70,7 +68,8 @@ def print_mem():
     print(f'Memory: allocated {alloc} bytes, free {free} bytes, total {alloc+free} bytes')
 
 
-def connect_wifi():
+def connect_wifi_if_not():
+    connect_just_now = False
     wlan = network.WLAN(network.STA_IF)
     if not wlan.isconnected():
         print(f'connect the network with {WIFI_SSID}:{WIFI_PASSWORD} ', end='')
@@ -79,13 +78,16 @@ def connect_wifi():
         while not wlan.isconnected():
             print(".", end="")
             utime.sleep(1)
+        connect_just_now = True
 
     # IP address, netmask, gateway, DNS
     print('\nnetwork config:', wlan.ifconfig())
+    return connect_just_now
 
 
 # the time is kept during deep sleep
-def calibration_time():
+def calibrate_time():
+    pre = utime.time()
     year, *_ = utime.localtime()
     if not str(year).startswith('202'):  # default is 2000-01-01 00:00:00
         # set the time from the network
@@ -93,3 +95,6 @@ def calibration_time():
         ntptime.NTP_DELTA = 3155644800  # 东八区 UTC+8偏移时间（秒）
         ntptime.settime()
         print("calibration_time to: {}".format(utime.localtime()))
+
+        current = utime.time()
+        print(f'time changes after calibration: {pre}, {current}')

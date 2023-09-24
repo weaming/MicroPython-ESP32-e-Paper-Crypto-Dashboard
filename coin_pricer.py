@@ -1,10 +1,11 @@
 # import framebuf  # https://docs.micropython.org/en/latest/library/framebuf.html#framebuf.FrameBuffer
 import utime
+import network
 
 import framebuf2
 import urequests as requests
+import device
 from epaper7in5b import EPD, white, black, EPD_WIDTH as w, EPD_HEIGHT as h
-from device import buf
 
 
 def get_symbol_price():
@@ -74,15 +75,21 @@ def ts_as_datetime_str(ts):
     yearday is 1-366
     """
     # 这里需要的ts时间戳是以模块rtc时钟初始值以起点计算的秒数
-    # 如esp32模块的rtc初始时钟是 2000年1月1日
-    # 所以1970年时间戳 需要转换为 rtc时间戳: 1686140724 - 946656000
+    # 如esp32模块的rtc初始时钟是 2000-01-01 00:00:00 UTC = 946684800 secs
+    # UTC+8 0 点需要加上 28800
+    # 所以1970年时间戳需要转换为 RTC UTC+8 时间戳: 1686140724 - 946656000
     year, month, day, hours, minutes, seconds, weekday, yearday = utime.localtime(ts - 946656000)
     return "{:04d}-{:02d}-{:02d} {:02d}:{:02d}".format(year, month, day, hours, minutes)
+
+
+def utime_secs_to_epoch_secs(ts):
+    return ts + 946684800
 
 
 X_LEFT = 30
 Y_TOP = 20
 Y_BODY = Y_TOP + 100
+BODY_LEFT = X_LEFT + 120
 BODY_LINE_HEIGHT = 55
 FONT_TITLE = 8
 FONT_BODY = 5
@@ -94,24 +101,38 @@ def display(epd: EPD):
     print(ts_str, data)
 
     epd.clear_screen()
-    fb = framebuf2.FrameBuffer(buf, w, h, framebuf2.MHMSB)
+    fb = framebuf2.FrameBuffer(device.buf, w, h, framebuf2.MHMSB)
 
     fb.fill(white)
     fb.text('Crypto!', 400, Y_TOP, black, size=FONT_TITLE)
     offset = 150
-    fb.text(f'{data["btc"]}', X_LEFT + offset, Y_BODY + BODY_LINE_HEIGHT, black, size=FONT_BODY)
-    fb.text(f'{data["eth"]}', X_LEFT + offset, Y_BODY + BODY_LINE_HEIGHT * 2, black, size=FONT_BODY)
-    fb.text(f'{data["hope"]}', X_LEFT + offset, Y_BODY + BODY_LINE_HEIGHT * 3, black, size=FONT_BODY)
-    fb.text(f'{data["lt"]}', X_LEFT + offset, Y_BODY + BODY_LINE_HEIGHT * 4, black, size=FONT_BODY)
-    epd.write_yellow_layer(buf, False)
+    fb.text(f'{data["btc"]}', BODY_LEFT + offset, Y_BODY + BODY_LINE_HEIGHT, black, size=FONT_BODY)
+    fb.text(f'{data["eth"]}', BODY_LEFT + offset, Y_BODY + BODY_LINE_HEIGHT * 2, black, size=FONT_BODY)
+    fb.text(f'{data["hope"]}', BODY_LEFT + offset, Y_BODY + BODY_LINE_HEIGHT * 3, black, size=FONT_BODY)
+    fb.text(f'{data["lt"]}', BODY_LEFT + offset, Y_BODY + BODY_LINE_HEIGHT * 4, black, size=FONT_BODY)
+    epd.write_yellow_layer(device.buf, False)
 
     fb.fill(white)
     fb.text('Hello', X_LEFT + 50, Y_TOP, black, size=FONT_TITLE)
     fb.rect(0, Y_TOP + 80, w, 2, black, fill=True)
     fb.text(ts_str, X_LEFT + 200, Y_TOP + 90, black, size=3)
-    fb.text(f' BTC: ', X_LEFT, Y_BODY + BODY_LINE_HEIGHT, black, size=FONT_BODY)
-    fb.text(f' ETH: ', X_LEFT, Y_BODY + BODY_LINE_HEIGHT * 2, black, size=FONT_BODY)
-    fb.text(f'HOPE: ', X_LEFT, Y_BODY + BODY_LINE_HEIGHT * 3, black, size=FONT_BODY)
-    fb.text(f'  LT: ', X_LEFT, Y_BODY + BODY_LINE_HEIGHT * 4, black, size=FONT_BODY)
+    fb.text(f' BTC: ', BODY_LEFT, Y_BODY + BODY_LINE_HEIGHT, black, size=FONT_BODY)
+    fb.text(f' ETH: ', BODY_LEFT, Y_BODY + BODY_LINE_HEIGHT * 2, black, size=FONT_BODY)
+    fb.text(f'HOPE: ', BODY_LEFT, Y_BODY + BODY_LINE_HEIGHT * 3, black, size=FONT_BODY)
+    fb.text(f'  LT: ', BODY_LEFT, Y_BODY + BODY_LINE_HEIGHT * 4, black, size=FONT_BODY)
 
-    epd.write_black_layer(buf, True)
+    epd.write_black_layer(device.buf, True)
+
+
+def prepare():
+    device.connect_device()
+    device.print_mem()
+
+    if device.connect_wifi_if_not():
+        device.calibrate_time()
+
+
+def entry():
+    if device.connect_wifi_if_not():
+        device.calibrate_time()
+    display(device.epd)
