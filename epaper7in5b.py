@@ -57,8 +57,7 @@ FLASH_MODE = const(0xE5)
 BUSY = const(0)  # 0=busy, 1=idle
 WHITE = const(0xFF)
 
-black = 0
-yellow = 0
+black = yellow = 0
 white = 1
 
 
@@ -137,16 +136,16 @@ class EPD:
 
     # functions for display
 
-    def clear_frame(self, buf_white, buf_yellow=None):
+    def clear_frame(self, buf_black, buf_yellow=None):
         for i in range(int(self.width * self.height / 8)):
-            buf_white[i] = WHITE
+            buf_black[i] = WHITE
             if buf_yellow is not None:
                 buf_yellow[i] = WHITE
 
     # copy from https://github.com/zhufucdev/gdey075z08_driver/blob/main/src/gdey075z08_driver/driver.py#L155
     # pixels of 8bit image with 256 colors of each pixel
     def get_frame_buffer(self, pixels: [bytes]):
-        buf_white = [WHITE] * int(self.height * self.width / 8)
+        buf_black = [WHITE] * int(self.height * self.width / 8)
         buf_yellow = [0x00] * int(self.height * self.width / 8)
 
         for y in range(self.height):
@@ -157,21 +156,21 @@ class EPD:
                     p = pixels[x * 8 + i, y]
                     # 0x80 = 0b10000000
                     if p < self.yellow_bounds[0]:
-                        sign_w &= ~(0x80 >> i)  # set from white to black
+                        sign_w &= ~(0x80 >> i)  # set from black to black
                     elif p < self.yellow_bounds[1]:
                         sign_y |= 0x80 >> i  # set from black to yellow
                 index = x + int(y * self.width / 8)
-                buf_white[index] = sign_w
+                buf_black[index] = sign_w
                 buf_yellow[index] = sign_y
-        return buf_white, buf_yellow
+        return buf_black, buf_yellow
 
     def write_buffer(self, buf):
         for data in buf:
             self._data(data)
         sleep_ms(100)
 
-    def write_white_layer(self, buf, refresh=False):
-        print('write_white_layer...')
+    def write_black_layer(self, buf, refresh=False):
+        print('write_black_layer...')
         self._command(DATA_START_TRANSMISSION_1)
         self.write_buffer(buf)
         if refresh:
@@ -190,11 +189,11 @@ class EPD:
 
     def clear_screen(self):
         print('clear_screen...')
-        self.clear_white_layer()
+        self.clear_black_layer()
         self.clear_yellow_layer()
         print('screen cleared.')
 
-    def clear_white_layer(self):
+    def clear_black_layer(self):
         self._command(DATA_START_TRANSMISSION_1)
         for _ in range(0, self.width * self.height / 8):
             self._data(WHITE)
@@ -204,18 +203,18 @@ class EPD:
         for _ in range(0, self.width * self.height / 8):
             self._data(WHITE)
 
-    def display_frame(self, buf_white, buf_yellow=None):
+    def display_frame(self, buf_black, buf_yellow=None):
         print('display_frame...')
 
-        if buf_white:
-            self.write_white_layer(buf_white)
+        if buf_black:
+            self.write_black_layer(buf_black)
         elif buf_yellow:
             self.clear_yellow_layer()
 
         if buf_yellow:
             self.write_yellow_layer(buf_yellow)
-        elif buf_white:
-            self.clear_white_layer()
+        elif buf_black:
+            self.clear_black_layer()
 
         print('display refresh ...')
         self._command(DISPLAY_REFRESH)
