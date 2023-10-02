@@ -6,66 +6,28 @@ from requests import get
 import device
 from epaper7in5b import EPD, white, black, EPD_WIDTH as w, EPD_HEIGHT as h
 
-TIMEOUT = 5
 
-
-def get_hope_prices():
+def get_from_api_server():
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
-        res = get('https://hope.money/hope-index-stage-2?period=3600', headers=headers, timeout=TIMEOUT)
-        response = res.json()
-        btc_price = response['btc_index_price']
-        eth_price = response['eth_index_price']
-        hope_price = response['hope_index_price']
-        ts = response['hope_price_list'][1][1]  # seconds
-        return btc_price, eth_price, hope_price, ts
-    except:
-        return '--', '--', '--', 0
-
-
-def get_lt_price():
-    try:
-        chain_id = 'ethereum'
-        pair_address = '0xa9ad6a54459635a62e883dc99861c1a69cf2c5b3'  # LT / USDT
-        # pair_address = '0x1c2ad915cd67284cdbc04507b11980797cf51b22'  # HOPE / USDT
-        # pair_address = '0x11b815efb8f581194ae79006d24e0d814b7697f6'  # WETH / USDT
-        # pair_address = '0x9db9e0e53058c89e5b94e29621a205198648425b'  # WBTC / USDT
-        resp = get(f'https://api.dexscreener.com/latest/dex/pairs/{chain_id}/{pair_address}', timeout=TIMEOUT)
-        lt_last_price = resp.json()['pair']['priceUsd']
-        return lt_last_price
+        res = get(f'https://epaper.drink.cafe/all', headers=headers, timeout=5).json()
+        return res['data'] or {}
     except Exception as e:
         print(e)
-        return '--'
-
-
-def bit_com_prices(bases):
-    ret = {}
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        res = get(
-            'https://epaper.drink.cafe/bitcom/index?base=btc,eth,fil,ton&quote=USD',
-            headers=headers,
-            timeout=TIMEOUT,
-        )
-        response = res.json()
-        return response['data'] or {}
-    except Exception as e:
-        print(e)
-    return ret
+    return {}
 
 
 def get_vars() -> dict:
-    btc, eth, hope, ts = get_hope_prices()  # 延迟比 dexscreener 更低
-    lt = get_lt_price()
-    bitcom = bit_com_prices(['fil', 'ton'])
+    data = get_from_api_server()
+    print('vars:', data)
     return dict(
-        ts=ts,
-        btc=btc,
-        eth=eth,
-        hope=hope,
-        lt=lt,
-        fil=bitcom.get('fil', '--'),
-        ton=bitcom.get('ton', '--'),
+        ts=data.get('hope', {})['ts'],
+        btc=data.get('hope', {})['btc'],
+        eth=data.get('hope', {})['eth'],
+        hope=data.get('hope', {})['hope'],
+        lt=data.get('dex', {}).get('LT-USDT', '--'),
+        fil=data.get('bitcom', {}).get('fil', '--'),
+        ton=data.get('bitcom', {}).get('ton', '--'),
     )
 
 
