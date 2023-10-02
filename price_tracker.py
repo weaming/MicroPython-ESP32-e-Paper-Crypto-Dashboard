@@ -2,15 +2,17 @@
 import utime
 
 import framebuf2
-import urequests as requests
+from requests import get
 import device
 from epaper7in5b import EPD, white, black, EPD_WIDTH as w, EPD_HEIGHT as h
+
+TIMEOUT = 5
 
 
 def get_hope_prices():
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
-        res = requests.request('GET', 'https://hope.money/hope-index-stage-2?period=3600', headers=headers)
+        res = get('https://hope.money/hope-index-stage-2?period=3600', headers=headers, timeout=TIMEOUT)
         response = res.json()
         btc_price = response['btc_index_price']
         eth_price = response['eth_index_price']
@@ -28,7 +30,7 @@ def get_lt_price():
         # pair_address = '0x1c2ad915cd67284cdbc04507b11980797cf51b22'  # HOPE / USDT
         # pair_address = '0x11b815efb8f581194ae79006d24e0d814b7697f6'  # WETH / USDT
         # pair_address = '0x9db9e0e53058c89e5b94e29621a205198648425b'  # WBTC / USDT
-        resp = requests.request('GET', f'https://api.dexscreener.com/latest/dex/pairs/{chain_id}/{pair_address}')
+        resp = get(f'https://api.dexscreener.com/latest/dex/pairs/{chain_id}/{pair_address}', timeout=TIMEOUT)
         lt_last_price = resp.json()['pair']['priceUsd']
         return lt_last_price
     except Exception as e:
@@ -40,8 +42,10 @@ def bit_com_prices(bases):
     ret = {}
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
-        res = requests.request(
-            'GET', 'https://epaper.drink.cafe/bitcom/index?base=btc,eth,fil,ton&quote=USD', headers=headers
+        res = get(
+            'https://epaper.drink.cafe/bitcom/index?base=btc,eth,fil,ton&quote=USD',
+            headers=headers,
+            timeout=TIMEOUT,
         )
         response = res.json()
         return response['data'] or {}
@@ -136,8 +140,9 @@ def prepare():
     device.connect_device()
     device.print_mem()
 
-    if device.no_exception(device.connect_wifi_if_not):
-        device.no_exception(device.calibrate_time)
+    device.no_exception(device.connect_wifi_if_not)
+    # if device.no_exception(device.connect_wifi_if_not):
+    #     device.no_exception(device.calibrate_time)
 
 
 def entry():
