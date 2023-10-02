@@ -9,6 +9,8 @@ import (
 	"github.com/shopspring/decimal"
 )
 
+const hopePlaces = 5
+
 type HopeRes struct {
 	HopePriceList  [][]float64     `json:"hope_price_list"`
 	BtcIndexPrice  decimal.Decimal `json:"btc_index_price"`
@@ -46,9 +48,9 @@ func hopeData() (any, error) {
 	}
 
 	return map[string]any{
-		"btc":  str(v.BtcIndexPrice),
-		"eth":  str(v.EthIndexPrice),
-		"hope": str(v.HopeIndexPrice),
+		"btc":  v.BtcIndexPrice.StringFixed(hopePlaces),
+		"eth":  v.EthIndexPrice.StringFixed(hopePlaces),
+		"hope": v.HopeIndexPrice.StringFixed(hopePlaces),
 		"ts":   v.HopePriceList[1][1],
 	}, nil
 }
