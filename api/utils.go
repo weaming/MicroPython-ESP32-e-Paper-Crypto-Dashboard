@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -23,6 +24,13 @@ func reply(w http.ResponseWriter, r *Res) {
 	}
 }
 
+func replyBytes(w http.ResponseWriter, bs []byte) {
+	_, err := w.Write(bs)
+	if err != nil {
+		log.Printf("write err: %v", err)
+	}
+}
+
 func NewHTTPClient(timeout time.Duration) *http.Client {
 	tr := &http.Transport{
 		MaxIdleConnsPerHost: 1024,
@@ -32,4 +40,8 @@ func NewHTTPClient(timeout time.Duration) *http.Client {
 		Transport: tr,
 		Timeout:   timeout * time.Second,
 	}
+}
+
+func str(v any) string {
+	return fmt.Sprintf("%v", v)
 }

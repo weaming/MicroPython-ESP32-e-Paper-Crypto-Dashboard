@@ -28,29 +28,37 @@ func bitcom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if base == "" {
-		base = "BTC,ETH"
+		base = "BTC,ETH,TON,FIL"
 	}
 	bases := strings.Split(base, ",")
 	bases = Map(bases, strings.ToLower)
 
-	log.Println(bases, quote)
-	res, err := client.Get(fmt.Sprintf("https://api.bit.com/um/v1/index_price?quote_currency=%s", quote))
+	data, err := bitcomData(bases, quote)
 	if err != nil {
 		replyErr(w, err)
 		return
 	}
+	reply(w, &Res{Data: data})
+}
+
+func bitcomData(bases []string, quote string) (any, error) {
+	url := fmt.Sprintf("https://api.bit.com/um/v1/index_price?quote_currency=%s", quote)
+	log.Println(bases, quote, url)
+
+	res, err := client.Get(url)
+	if err != nil {
+		return nil, err
+	}
 
 	data, err := io.ReadAll(res.Body)
 	if err != nil {
-		replyErr(w, err)
-		return
+		return nil, err
 	}
 
 	v := BitcomRes{}
 	err = json.Unmarshal(data, &v)
 	if err != nil {
-		replyErr(w, err)
-		return
+		return nil, err
 	}
 
 	ret := map[string]any{}
@@ -60,5 +68,6 @@ func bitcom(w http.ResponseWriter, r *http.Request) {
 			ret[k] = x.IndexPrice
 		}
 	}
-	reply(w, &Res{Data: ret})
+
+	return ret, nil
 }

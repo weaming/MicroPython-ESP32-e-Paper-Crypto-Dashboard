@@ -24,6 +24,10 @@ func main() {
 	flag.Parse()
 
 	http.HandleFunc("/bitcom/index", bitcom)
+	http.HandleFunc("/hope/index", hope)
+	http.HandleFunc("/dexscreener/pairs", dexscreener)
+	http.HandleFunc("/all", all)
+
 	log.Printf("listen on %v", *listen)
 	err := http.ListenAndServe(*listen, nil)
 	if err != nil {
