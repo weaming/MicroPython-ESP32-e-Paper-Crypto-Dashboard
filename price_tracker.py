@@ -105,7 +105,7 @@ def display(epd: EPD):
     ts_str = ts_as_datetime_str(data['ts'])
     print(ts_str, data)
 
-    epd.clear_screen()
+    # epd.clear_screen()  # no need to clear screen
     fb = framebuf2.FrameBuffer(device.buf, w, h, framebuf2.MHMSB)
 
     fb.fill(white)
@@ -136,9 +136,9 @@ def prepare():
     device.connect_device()
     device.print_mem()
 
-    if device.connect_wifi_if_not():
-        device.calibrate_time()
+    if device.no_exception(device.connect_wifi_if_not):
+        device.no_exception(device.calibrate_time)
 
 
 def entry():
-    display(device.epd)
+    device.no_exception(display, device.epd)

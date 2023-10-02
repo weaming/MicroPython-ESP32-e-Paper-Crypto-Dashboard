@@ -33,6 +33,7 @@ import utime
 import gc
 from machine import Pin, SPI
 import epaper7in5b as epaper
+import framebuf2
 from config import WIFI_SSID, WIFI_PASSWORD
 
 
@@ -98,3 +99,29 @@ def calibrate_time():
 
         current = utime.time()
         print(f'time changes after calibration: {pre}, {current}')
+
+
+has_err = False
+
+
+def no_exception(func, *args, **kwargs):
+    global has_err
+    if has_err:
+        return
+
+    try:
+        return func(*args, **kwargs)
+    except BaseException as e:
+        has_err = True
+        msg = f'err: {e}, func {func.__name__}, args {args}, kwargs {kwargs}'
+        print(msg)
+        print_err(epd, msg)
+
+
+def print_err(epd: epaper.EPD, msg: str):
+    epd.clear_screen()
+    fb = framebuf2.FrameBuffer(buf, epaper.EPD_WIDTH, epaper.EPD_HEIGHT, framebuf2.MHMSB)
+
+    fb.fill(epaper.white)
+    fb.text(msg, 10, 10, epaper.black, size=2)
+    epd.write_black_layer(buf, True)
