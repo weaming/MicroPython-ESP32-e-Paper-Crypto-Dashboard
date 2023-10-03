@@ -42,10 +42,10 @@ func dexscreener(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if pairAddr == "" {
-		pairAddr = "0xa9ad6a54459635a62e883dc99861c1a69cf2c5b3"   // LT / USDT
-		pairAddr += ",0x1c2ad915cd67284cdbc04507b11980797cf51b22" // HOPE / USDT
-		pairAddr += ",0x11b815efb8f581194ae79006d24e0d814b7697f6" // WETH / USDT
-		pairAddr += ",0x9db9e0e53058c89e5b94e29621a205198648425b" // WBTC / USDT
+		pairAddr = "0xa9ad6a54459635a62e883dc99861c1a69cf2c5b3" // LT / USDT
+		// pairAddr += ",0x1c2ad915cd67284cdbc04507b11980797cf51b22" // HOPE / USDT
+		// pairAddr += ",0x11b815efb8f581194ae79006d24e0d814b7697f6" // WETH / USDT
+		// pairAddr += ",0x9db9e0e53058c89e5b94e29621a205198648425b" // WBTC / USDT
 	}
 
 	data, err := dexScreenerData(chainId, pairAddr)

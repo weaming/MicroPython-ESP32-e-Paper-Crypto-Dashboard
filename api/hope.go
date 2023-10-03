@@ -9,7 +9,7 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-const hopePlaces = 5
+const hopePlaces = 8
 
 type HopeRes struct {
 	HopePriceList  [][]float64     `json:"hope_price_list"`
